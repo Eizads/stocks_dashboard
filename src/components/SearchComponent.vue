@@ -1,17 +1,21 @@
 <template>
   <div>
+    <!-- search bar -->
     <div class="container bg-white full-width q-mb-md">
       <div class="row justify-center items-center">
         <div class="col-12 col-md-8 q-pa-md">
-          <q-input rounded standout v-model="searchQuery" debounce="500" placeholder="stock name">
+          <q-input rounded outlined v-model="searchQuery" debounce="500" placeholder="stock name">
+            <template v-slot:prepend>
+              <q-icon name="search" color=""></q-icon>
+            </template>
             <template v-slot:append>
-              <q-icon name="search" color="secondary"></q-icon>
-              <q-icon name="close" color="secondary"></q-icon>
+              <q-icon name="close" color="" @click="$emit('closeDialog')"></q-icon>
             </template>
           </q-input>
         </div>
       </div>
     </div>
+    <!-- search results -->
     <div class="container">
       <div class="row justify-center">
         <div class="col-md-8">
@@ -56,6 +60,7 @@ export default {
     const searchResult = computed(() => {
       return filterStock.value.map((stock) => stock)
     })
+
     onMounted(async () => {
       try {
         const response = await stocksService.getStocksList()
@@ -79,10 +84,10 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.q-field__native,
-.q-field__prefix,
-.q-field__suffix,
-.q-field__input {
-  color: #8c8c8c !important;
-}
+// .q-field__native,
+// .q-field__prefix,
+// .q-field__suffix,
+// .q-field__input {
+//   color: #8c8c8c !important;
+// }
 </style>

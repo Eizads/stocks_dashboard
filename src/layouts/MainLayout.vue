@@ -1,7 +1,7 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
-      <q-toolbar class="flex flex-column text-white bg-dark">
+    <q-header>
+      <q-toolbar class="flex flex-column text-white bg-dark" style="height: 88px">
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 
         <q-toolbar-title> Stocks Dashboard </q-toolbar-title>
@@ -18,7 +18,7 @@
       </q-list>
     </q-drawer>
     <q-dialog v-model="openSearchModal" position="top" maximized>
-      <SearchComponent />
+      <SearchComponent @close-dialog="openSearchModal = false" />
     </q-dialog>
 
     <q-page-container>
