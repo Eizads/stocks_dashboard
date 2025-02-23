@@ -2,16 +2,60 @@ import axios from 'axios'
 
 const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY
 const baseUrl = 'https://api.twelvedata.com'
+let socket = null
 
 const getStocksList = () => {
   return axios.get(`${baseUrl}/stocks`)
 }
 
-const getStockDetail = (symbol) => {
+const getStockHistory = (symbol) => {
   return axios.get(`${baseUrl}/time_series?apikey=${apiKey}&symbol=${symbol}&interval=1min`)
 }
 
+//websocket function for live updates
+const connectWebSocket = (symbol, onMessageCallback) => {
+  if (socket) {
+    console.log('🛑 Closing existing WebSocket before opening a new one...')
+    socket.close()
+  }
+  socket = new WebSocket(`wss://ws.twelvedata.com/v1/quotes/price?apikey=${apiKey}`)
+  socket.onopen = () => {
+    console.log('web socket connected')
+    socket.send(JSON.stringify({ action: 'subscribe', params: { symbols: symbol } }))
+  }
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data)
+    console.log('data from websocket ', data)
+    if (data.price) {
+      onMessageCallback(
+        data.price,
+        new Date().toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        }),
+      )
+    }
+  }
+  socket.onerror = (error) => {
+    console.error('Websocket Error', error)
+  }
+  socket.onclose = () => {
+    console.log('Websocket disconnected, reconnecting...')
+    setTimeout(() => connectWebSocket(symbol, onMessageCallback), 5000)
+  }
+  return socket
+}
+export function disconnectWebSocket() {
+  if (socket) {
+    console.log('🛑 Unsubscribing and Closing WebSocket...')
+    socket.close()
+    socket = null // Clear the WebSocket instance
+  }
+}
 export default {
   getStocksList,
-  getStockDetail,
+  connectWebSocket,
+  getStockHistory,
+  disconnectWebSocket,
 }

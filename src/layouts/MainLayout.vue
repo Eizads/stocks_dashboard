@@ -12,13 +12,28 @@
 
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
-        <q-item-label header> Watchlist </q-item-label>
+        <q-item>
+          <q-item-section>Watchlist</q-item-section>
+          <q-item-section avatar>
+            <q-icon
+              color="primary"
+              name="bi-plus"
+              size="1.5rem"
+              @click="openWatchlistModal = true"
+            />
+          </q-item-section>
+        </q-item>
+        <!-- <q-item-label header> Watchlist </q-item-label>
+        <q-icon name="bi-plus" size="1.5rem" @click="openSearchModal = true"></q-icon> -->
 
         <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" />
       </q-list>
     </q-drawer>
     <q-dialog v-model="openSearchModal" position="top" maximized>
-      <SearchComponent @close-dialog="openSearchModal = false" />
+      <SearchComponent @closeSearchDialog="openSearchModal = false" />
+    </q-dialog>
+    <q-dialog v-model="openWatchlistModal" position="top" maximized>
+      <WatchlistComponent @closeWatchListDialog="openWatchlistModal = false" />
     </q-dialog>
 
     <q-page-container>
@@ -31,6 +46,7 @@
 import { defineComponent, ref } from 'vue'
 import EssentialLink from 'components/EssentialLink.vue'
 import SearchComponent from 'src/components/SearchComponent.vue'
+import WatchlistComponent from 'src/components/watchlistComponent.vue'
 
 const linksList = [
   {
@@ -38,42 +54,6 @@ const linksList = [
     caption: 'quasar.dev',
     icon: 'school',
     link: 'https://quasar.dev',
-  },
-  {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework',
-  },
-  {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev',
-  },
-  {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev',
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev',
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev',
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev',
   },
 ]
 
@@ -83,11 +63,13 @@ export default defineComponent({
   components: {
     EssentialLink,
     SearchComponent,
+    WatchlistComponent,
   },
 
   setup() {
     const leftDrawerOpen = ref(false)
     const openSearchModal = ref(false)
+    const openWatchlistModal = ref(false)
 
     return {
       linksList,
@@ -96,6 +78,7 @@ export default defineComponent({
         leftDrawerOpen.value = !leftDrawerOpen.value
       },
       openSearchModal,
+      openWatchlistModal,
     }
   },
 })

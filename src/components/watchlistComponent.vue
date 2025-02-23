@@ -9,7 +9,7 @@
               <q-icon name="search" color=""></q-icon>
             </template>
             <template v-slot:append>
-              <q-icon name="close" color="" @click="$emit('closeSearchDialog')"></q-icon>
+              <q-icon name="close" color="" @click="$emit('closeWatchListDialog')"></q-icon>
             </template>
           </q-input>
         </div>

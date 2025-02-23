@@ -38,7 +38,8 @@ export default defineComponent({
   },
   setup() {
     // stocksService.getStocksList().then((response) => console.log(response.data))
-
+    const dateFormat = new Date().toLocaleTimeString()
+    console.log('format', dateFormat)
     onMounted(() => {})
   },
 })
