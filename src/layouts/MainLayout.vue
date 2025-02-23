@@ -3,8 +3,10 @@
     <q-header>
       <q-toolbar class="flex flex-column text-white bg-dark" style="height: 88px">
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
-
-        <q-toolbar-title> Stocks Dashboard </q-toolbar-title>
+        <!-- <q-item to="/" clickable flat>
+          <q-toolbar-title> Stocks Dashboard </q-toolbar-title>
+        </q-item> -->
+        <q-btn flat label="Stocks Dashboard" :to="'/'" />
         <q-space />
         <q-btn flat round dense icon="search" class="q-mr-xs" @click="openSearchModal = true" />
       </q-toolbar>

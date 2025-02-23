@@ -3,6 +3,7 @@ import axios from 'axios'
 const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY
 const baseUrl = 'https://api.twelvedata.com'
 let socket = null
+let shouldReconnect = true // ✅ Track whether reconnection is allowed
 
 const getStocksList = () => {
   return axios.get(`${baseUrl}/stocks`)
@@ -41,12 +42,16 @@ const connectWebSocket = (symbol, onMessageCallback) => {
     console.error('Websocket Error', error)
   }
   socket.onclose = () => {
-    console.log('Websocket disconnected, reconnecting...')
-    setTimeout(() => connectWebSocket(symbol, onMessageCallback), 5000)
+    console.warn('Websocket disconnected')
+    if (shouldReconnect) {
+      console.log('Reconnecting WebSocket in 5 seconds...')
+      setTimeout(() => connectWebSocket(symbol, onMessageCallback), 5000)
+    }
   }
   return socket
 }
 export function disconnectWebSocket() {
+  shouldReconnect = false
   if (socket) {
     console.log('🛑 Unsubscribing and Closing WebSocket...')
     socket.close()
