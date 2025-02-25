@@ -11,6 +11,7 @@
 
 <script>
 import { defineComponent, ref, computed, watch, onMounted, onUnmounted } from 'vue'
+// import { useStockStore } from 'src/stores/store'
 import stocksService from 'src/services/stocks.js'
 import { LineChart } from 'vue-chart-3'
 import {
@@ -42,6 +43,7 @@ export default defineComponent({
   components: { LineChart },
   props: { stockSymbol: String },
   setup(props) {
+    // const store = useStockStore()
     const options = ref({
       responsive: true,
       maintainAspectRatio: false,
@@ -68,15 +70,28 @@ export default defineComponent({
     })
 
     const generateTimeLabels = () => {
-      const now = new Date()
-      const start = new Date(now.getHours(), now.getMinutes(), 9, 0, 0)
-      const end = new Date(now.getHours(), now.getMinutes(), 16, 0, 0)
-
       const times = []
-      while (start <= end) {
-        times.push(new Date(start))
-        start.setMinutes(start.getMinutes() + 1)
+
+      const startTime = new Date()
+      startTime.setHours(9, 0, 0, 0) // set start time to 9:00 a.m.
+
+      const endTime = new Date()
+      endTime.setHours(16, 0, 0, 0) // set end time to 4:00 p.m.
+
+      // Loop until the startTime exceeds the endTime
+      while (startTime <= endTime) {
+        // Format the current time label
+        const label = startTime.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        })
+        times.push(label)
+
+        // Increment the startTime by 1 minute
+        startTime.setMinutes(startTime.getMinutes() + 1)
       }
+
       return times
     }
 
@@ -97,15 +112,22 @@ export default defineComponent({
     }))
 
     const updateChart = (price, time) => {
-      const timeObj = new Date()
-      timeObj.setHours(...time.split(':').map(Number))
+      console.log('price', price)
+      console.log('time', time)
 
-      const index = timestamps.value.findIndex(
-        (t) => t.getHours() === timeObj.getHours() && t.getMinutes() === timeObj.getMinutes(),
-      )
+      const minTime = new Date(options.value.scales.x.min)
+      const maxTime = new Date(options.value.scales.x.max)
+
+      console.log('min', minTime)
+      console.log('max', maxTime)
+      // ✅ Find the matching index in the X-axis labels
+      const index = timestamps.value.findIndex((t) => t === time)
 
       if (index !== -1) {
-        prices.value[index] = price
+        prices.value[index] = price // ✅ Update only the matching time slot
+        prices.value = [...prices.value] // ✅ Force reactivity update for Vue
+      } else {
+        console.warn(`Received timestamp (${time}) does not match any X-axis labels`)
       }
     }
 
@@ -138,3 +160,42 @@ export default defineComponent({
   height: 400px;
 }
 </style>
+
+<!-- trial symbols -->
+<!-- Forex:
+
+EUR/USD (Euro/US Dollar)
+Cryptocurrency:
+
+BTC/USD (Bitcoin/US Dollar)
+United States (US):
+
+AAPL (Apple Inc)
+QQQ (Invesco QQQ Trust)
+ABML (American Battery Technology Company)
+IXIC (NASDAQ Composite Index)
+VFIAX (Vanguard 500 Index Fund)
+Canada (CA):
+
+TRP:TSX (TC Energy Corp)
+SVI:TSXV (StorageVault Canada Inc)
+MEDV:NEO (Medivolve Inc.)
+India (IN):
+
+INFY:NSE (Infosys Limited)
+SUPERSHAKT:BSE (Supershakti Metaliks Limited)
+Netherlands (NL):
+
+ADYEN:Euronext (Adyen N.V.)
+Belgium (BE):
+
+BOTHE:Euronext (Bone Therapeutics SA)
+Portugal (PT):
+
+SLBEN:Euronext (Sport Lisboa e Benfica - Futebol, SAD)
+France (FR):
+
+ALMIL:Euronext (1000mercis)
+Ireland (IE):
+
+DQ7A:ISE (Donegal Investment Group plc) -->

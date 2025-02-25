@@ -18,6 +18,12 @@ export const useStockStore = defineStore('stockStore', () => {
       stocksList.value = []
     }
   }
+  const getFormattedTime = () =>
+    new Date().toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
 
-  return { stocksList, fetchStockList }
+  return { stocksList, fetchStockList, getFormattedTime }
 })

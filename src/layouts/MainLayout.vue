@@ -34,7 +34,7 @@
     <q-dialog v-model="openSearchModal" position="top" maximized>
       <SearchComponent @closeSearchDialog="openSearchModal = false" />
     </q-dialog>
-    <q-dialog v-model="openWatchlistModal" position="top" maximized>
+    <q-dialog v-model="openWatchlistModal" full-width>
       <WatchlistComponent @closeWatchListDialog="openWatchlistModal = false" />
     </q-dialog>
 

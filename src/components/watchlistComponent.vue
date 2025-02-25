@@ -1,26 +1,28 @@
 <template>
   <div>
-    <!-- search bar -->
-    <div class="container bg-white full-width q-mb-md">
-      <div class="row justify-center items-center">
-        <div class="col-12 col-md-8 q-pa-md">
-          <q-input rounded outlined v-model="searchQuery" debounce="500" placeholder="stock name">
-            <template v-slot:prepend>
-              <q-icon name="search" color=""></q-icon>
-            </template>
-            <template v-slot:append>
-              <q-icon name="close" color="" @click="$emit('closeWatchListDialog')"></q-icon>
-            </template>
-          </q-input>
-        </div>
-      </div>
-    </div>
-    <!-- search results -->
     <div class="container">
       <div class="row justify-center">
         <div class="col-md-7">
-          <q-card v-if="searchQuery" style="width: 100%; max-height: 800px; overflow: scroll">
+          <q-card style="width: 100%; height: 700px; max-height: 800px; overflow: scroll">
+            <!-- search bar -->
             <q-card-section>
+              <q-input
+                rounded
+                outlined
+                v-model="searchQuery"
+                debounce="500"
+                placeholder="stock name"
+              >
+                <template v-slot:prepend>
+                  <q-icon name="search" color=""></q-icon>
+                </template>
+                <template v-slot:append>
+                  <q-icon name="close" color="" @click="$emit('closeWatchListDialog')"></q-icon>
+                </template>
+              </q-input>
+            </q-card-section>
+            <!-- search results -->
+            <q-card-section v-if="searchQuery">
               <div>
                 <div class="q-pa-md">
                   <q-list separator class="full-width">
