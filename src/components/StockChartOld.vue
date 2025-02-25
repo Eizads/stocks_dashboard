@@ -44,14 +44,12 @@ export default defineComponent({
   props: { stockSymbol: String },
   setup(props) {
     // const store = useStockStore()
-    const lastUpdatedTime = ref(null) // ✅ Track last updated time every 5 mins
 
     const options = ref({
       responsive: true,
       maintainAspectRatio: false,
       scales: {
         x: {
-          display: true,
           type: 'time',
           time: {
             unit: 'hour', // ✅ Show only full hours
@@ -68,17 +66,7 @@ export default defineComponent({
           min: new Date().setHours(9, 0, 0, 0), // ✅ Start at 9 AM
           max: new Date().setHours(16, 0, 0, 0), // ✅ End at 4 PM
         },
-        y: {
-          display: true,
-          beginAtZero: false,
-          suggestedMin: ref(null), // ✅ Dynamic min value
-          suggestedMax: ref(null), // ✅ Dynamic max value
-        },
-        ticks: {
-          autoSkip: false, // ✅ Prevents skipping full hours
-          source: 'auto',
-          maxTicksLimit: 5, // ✅ Limits the number of labels to avoid clutter
-        },
+        y: { beginAtZero: false },
       },
     })
 
@@ -102,7 +90,7 @@ export default defineComponent({
         times.push(label)
 
         // Increment the startTime by 1 minute
-        startTime.setMinutes(startTime.getMinutes() + 5)
+        startTime.setMinutes(startTime.getMinutes() + 1)
       }
 
       return times
@@ -111,7 +99,6 @@ export default defineComponent({
     const timestamps = ref(generateTimeLabels())
     const prices = ref(Array(timestamps.value.length).fill(null))
 
-    console.log('timestamps', timestamps.value)
     const chartData = computed(() => ({
       labels: timestamps.value,
       datasets: [
@@ -134,31 +121,6 @@ export default defineComponent({
 
       console.log('min', minTime)
       console.log('max', maxTime)
-      if (time >= minTime && time <= maxTime) {
-        const currentMinute = time
-
-        // ✅ Only update if it's a new minute
-        if (
-          lastUpdatedTime.value == null ||
-          currentMinute >= lastUpdatedTime.value + 5 ||
-          currentMinute === 0
-        ) {
-          prices.value.push({ x: time, y: price }) // ✅ Add new data point dynamically
-          prices.value = [...prices.value] // ✅ Force Vue reactivity update
-          lastUpdatedTime.value = currentMinute
-
-          // ✅ Keep Y-axis stable while setting a reasonable range
-          const minPrice = Math.min(...prices.value.map((d) => d.y)) * 0.98 // 2% buffer below
-          const maxPrice = Math.max(...prices.value.map((d) => d.y)) * 1.02 // 2% buffer above
-
-          options.value.scales.y.suggestedMin = minPrice
-          options.value.scales.y.suggestedMax = maxPrice
-        } else {
-          console.log(`⏳ Ignoring duplicate update for ${time}`)
-        }
-      } else {
-        console.warn(`⚠️ Ignored timestamp (${time}), outside of X-axis range`)
-      }
       // ✅ Find the matching index in the X-axis labels
       const index = timestamps.value.findIndex((t) => t === time)
 
