@@ -18,6 +18,22 @@ export const useStockStore = defineStore('stockStore', () => {
       stocksList.value = []
     }
   }
+  const fetchStockHistory = async (symbol) => {
+    if (stocksList.value.length > 0) return
+    try {
+      const response = await stocksService.getStockHistory(symbol)
+      console.log('history data', response.data)
+      let timeSeriesResponse = response.data.values.map((data) => ({
+        x: new Date(data.datetime),
+        y: parseFloat(data.close), // ✅ Convert price to float
+      }))
+      console.log('timeRes', timeSeriesResponse)
+      return timeSeriesResponse
+    } catch (error) {
+      console.error('Error fetching price history', error)
+      return []
+    }
+  }
   const getFormattedTime = () =>
     new Date().toLocaleTimeString('en-US', {
       hour: 'numeric',
@@ -25,5 +41,5 @@ export const useStockStore = defineStore('stockStore', () => {
       hour12: true,
     })
 
-  return { stocksList, fetchStockList, getFormattedTime }
+  return { stocksList, fetchStockList, getFormattedTime, fetchStockHistory }
 })

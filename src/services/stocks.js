@@ -10,7 +10,18 @@ const getStocksList = () => {
 }
 
 const getStockHistory = (symbol) => {
-  return axios.get(`${baseUrl}/time_series?apikey=${apiKey}&symbol=${symbol}&interval=1min`)
+  const now = new Date()
+  const today = now.toISOString().split('T')[0] // Format as YYYY-MM-DD
+
+  return axios.get(`${baseUrl}/time_series`, {
+    params: {
+      symbol,
+      interval: '5min', // ✅ Fetch 5-minute interval prices
+      start_date: `${today} 09:30:00`, // ✅ Fetch from 9 AM (Market Open)
+      end_date: now.toISOString(), // ✅ Fetch until now
+      apikey: apiKey,
+    },
+  })
 }
 
 //websocket function for live updates

@@ -2,6 +2,7 @@
   <q-card class="q-pa-md">
     <q-card-section>
       <h5>Live Stock Chart: {{ stockSymbol }}</h5>
+      {{ timeSeries }}
     </q-card-section>
     <q-card-section>
       <LineChart ref="lineChartRef" :chart-data="chartData" :chart-options="options" />
@@ -11,7 +12,7 @@
 
 <script>
 import { defineComponent, ref, computed, watch, onMounted, onUnmounted } from 'vue'
-// import { useStockStore } from 'src/stores/store'
+import { useStockStore } from 'src/stores/store'
 import stocksService from 'src/services/stocks.js'
 import { LineChart } from 'vue-chart-3'
 import {
@@ -43,8 +44,12 @@ export default defineComponent({
   components: { LineChart },
   props: { stockSymbol: String },
   setup(props) {
-    // const store = useStockStore()
+    const timeSeries = ref([])
+    const store = useStockStore()
     const lastUpdatedTime = ref(null) // ✅ Track last updated time every 5 mins
+    // Define reactive min/max values for Y-axis
+    const suggestedMin = ref(null)
+    const suggestedMax = ref(null)
 
     const options = ref({
       responsive: true,
@@ -65,19 +70,25 @@ export default defineComponent({
             source: 'auto',
             maxTicksLimit: 8, // ✅ Limits the number of labels to avoid clutter
           },
-          min: new Date().setHours(9, 0, 0, 0), // ✅ Start at 9 AM
+          min: new Date().setHours(9, 30, 0, 0), // ✅ Start at 9 AM
           max: new Date().setHours(16, 0, 0, 0), // ✅ End at 4 PM
         },
         y: {
           display: true,
           beginAtZero: false,
-          suggestedMin: ref(null), // ✅ Dynamic min value
-          suggestedMax: ref(null), // ✅ Dynamic max value
-        },
-        ticks: {
-          autoSkip: false, // ✅ Prevents skipping full hours
-          source: 'auto',
-          maxTicksLimit: 5, // ✅ Limits the number of labels to avoid clutter
+          suggestedMin: suggestedMin.value, // ✅ min value
+          suggestedMax: suggestedMax.value, // ✅ max value
+          ticks: {
+            callback: function (value) {
+              return value.toFixed(2) // Ensures 2 decimal places
+            },
+
+            stepSize: 0.5, // Adjust this based on your range
+
+            autoSkip: false, // ✅ Prevents skipping full hours
+            source: 'auto',
+            maxTicksLimit: 5, // ✅ Limits the number of labels to avoid clutter
+          },
         },
       },
     })
@@ -86,7 +97,7 @@ export default defineComponent({
       const times = []
 
       const startTime = new Date()
-      startTime.setHours(9, 0, 0, 0) // set start time to 9:00 a.m.
+      startTime.setHours(9, 30, 0, 0) // set start time to 9:00 a.m.
 
       const endTime = new Date()
       endTime.setHours(16, 0, 0, 0) // set end time to 4:00 p.m.
@@ -102,7 +113,7 @@ export default defineComponent({
         times.push(label)
 
         // Increment the startTime by 1 minute
-        startTime.setMinutes(startTime.getMinutes() + 5)
+        startTime.setMinutes(startTime.getMinutes() + 1)
       }
 
       return times
@@ -123,6 +134,7 @@ export default defineComponent({
           tension: 0.3,
         },
       ],
+      options: Object.assign({}, options.value),
     }))
 
     const updateChart = (price, time) => {
@@ -140,7 +152,7 @@ export default defineComponent({
         // ✅ Only update if it's a new minute
         if (
           lastUpdatedTime.value == null ||
-          currentMinute >= lastUpdatedTime.value + 5 ||
+          (currentMinute >= lastUpdatedTime.value + 1 && lastUpdatedTime.value !== currentMinute) ||
           currentMinute === 0
         ) {
           prices.value.push({ x: time, y: price }) // ✅ Add new data point dynamically
@@ -173,6 +185,8 @@ export default defineComponent({
     onMounted(() => {
       console.log('📡 Connecting WebSocket...')
       stocksService.connectWebSocket(props.stockSymbol, updateChart)
+
+      timeSeries.value = store.fetchStockHistory(props.stockSymbol)
     })
 
     onUnmounted(() => {
@@ -189,7 +203,7 @@ export default defineComponent({
       },
     )
 
-    return { chartData, options }
+    return { chartData, options, timeSeries }
   },
 })
 </script>
