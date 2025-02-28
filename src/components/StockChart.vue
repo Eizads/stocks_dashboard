@@ -146,6 +146,7 @@ export default defineComponent({
 
       console.log('min', minTime)
       console.log('max', maxTime)
+      debugger
       if (time >= minTime && time <= maxTime) {
         const currentMinute = time
 

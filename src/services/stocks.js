@@ -10,15 +10,14 @@ const getStocksList = () => {
 }
 
 const getStockHistory = (symbol) => {
-  const now = new Date()
-  const today = now.toISOString().split('T')[0] // Format as YYYY-MM-DD
-
+  const today = new Intl.DateTimeFormat('en-CA').format(new Date())
+  console.log('today', today)
   return axios.get(`${baseUrl}/time_series`, {
     params: {
       symbol,
       interval: '5min', // ✅ Fetch 5-minute interval prices
-      start_date: `${today} 09:30:00`, // ✅ Fetch from 9 AM (Market Open)
-      end_date: now.toISOString(), // ✅ Fetch until now
+      start_date: `2025-02-27 09:30:00`, // ✅ Fetch from 9 AM (Market Open)
+      end_date: `2025-02-27 16:00:00`, // ✅ Fetch until now
       apikey: apiKey,
     },
   })
@@ -41,6 +40,7 @@ const connectWebSocket = (symbol, onMessageCallback) => {
     if (data.price) {
       onMessageCallback(
         data.price,
+        // data.timestamp,
         new Date().toLocaleTimeString('en-US', {
           hour: 'numeric',
           minute: '2-digit',

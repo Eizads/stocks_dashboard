@@ -123,9 +123,9 @@ export default {
       return sortedStocks.value.map((stock) => stock)
     })
 
-    onMounted(() => {
+    onMounted(async () => {
       if (store.stocksList.length === 0) {
-        store.fetchStockList() // ✅ Shared API call
+        await store.fetchStockList() // ✅ Shared API call
       }
     })
 
