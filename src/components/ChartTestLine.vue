@@ -1,7 +1,6 @@
 <template>
   <div id="app" style="width: 100%">
-    {{ selectedStockHistory }}
-    {{ formattedArray }}
+    <!-- {{ selectedStockHistory }} -->
     <LineChart v-bind="lineChartProps" />
   </div>
 </template>
@@ -62,7 +61,7 @@ export default defineComponent({
 
       datasets: [
         {
-          data: store.stockHistory,
+          data: selectedStockHistory.value,
           backgroundColor: ['#77CEFF'],
         },
       ],
@@ -135,20 +134,6 @@ export default defineComponent({
 
       //getting stock history
       selectedStockHistory.value = await store.fetchStockHistory(props.stockSymbol)
-
-      if (selectedStockHistory.value) {
-        const newArr = []
-        newArr.push(selectedStockHistory.value)
-        formattedArray.value = newArr.map((item) => ({
-          x: item.x.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          }), // ✅ Format time
-          y: item.y,
-        }))
-        console.log('day formatted', formattedArray)
-      }
     })
 
     onUnmounted(() => {

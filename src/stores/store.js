@@ -24,10 +24,17 @@ export const useStockStore = defineStore('stockStore', () => {
       const response = await stocksService.getStockHistory(symbol)
       // console.log('history data', response.data)
       if (response.data) {
-        stockHistory.value = response.data?.values.map((data) => ({
-          x: new Date(data.datetime),
-          y: parseFloat(data.close), // ✅ Convert price to float
-        }))
+        stockHistory.value = response.data?.values.map((data) => {
+          const dateObj = new Date(data.datetime.replace(' ', 'T'))
+          return {
+            x: dateObj.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            }), // format the date to '3:55 PM'
+            y: parseFloat(data.close), // ✅ Convert price to float
+          }
+        })
         console.log('stock history', stockHistory)
         return stockHistory.value
       }
