@@ -9,7 +9,7 @@ const routes = [
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '/:symbol', component: StockDetail },
+      { path: '/:exchange-:symbol', component: StockDetail },
 
       { path: '', component: () => import('pages/IndexPage.vue') },
     ],

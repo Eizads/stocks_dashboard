@@ -27,7 +27,7 @@
                 <div class="q-pa-md">
                   <q-list separator class="full-width">
                     <q-item
-                      :to="`/${stock.symbol}`"
+                      :to="`/${stock.exchange}-${stock.symbol}`"
                       v-for="(stock, index) in searchResult"
                       :key="index"
                       clickable
@@ -85,13 +85,16 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+
 import { useQuasar } from 'quasar'
 import { useStockStore } from 'src/stores/store'
 
 export default {
-  setup() {
+  setup(_, { emit }) {
     const store = useStockStore()
+    const router = useRouter()
 
     // eslint-disable-next-line no-unused-vars
     const $q = useQuasar()
@@ -124,13 +127,21 @@ export default {
     const searchResult = computed(() => {
       return sortedStocks.value.map((stock) => stock)
     })
+    //closing the search dialog even if the same route is selected again
+    const unregisterAfterEach = router.afterEach(() => {
+      console.log('🔄 Route changed! Closing modal...')
+      emit('closeWatchListDialog')
+    })
 
     onMounted(() => {
       if (store.stocksList.length === 0) {
         store.fetchStockList() // ✅ Shared API call
       }
     })
-
+    // ✅ Clean up listener when component is destroyed
+    onUnmounted(() => {
+      unregisterAfterEach()
+    })
     return {
       filteredStocks,
       searchQuery,

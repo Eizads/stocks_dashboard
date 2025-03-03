@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1>stock detail</h1>
-    <ChartTestLine :stockSymbol="route.params.symbol" />
+    <ChartTestLine :stockExchange="route.params.exchange" :stockSymbol="route.params.symbol" />
     <!-- <StockChart :stockSymbol="route.params.symbol" /> -->
   </div>
 </template>

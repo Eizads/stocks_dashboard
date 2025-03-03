@@ -20,6 +20,7 @@ export default defineComponent({
   },
   props: {
     stockSymbol: String,
+    stockExchange: String,
   },
   setup(props) {
     const store = useStockStore()
@@ -82,7 +83,7 @@ export default defineComponent({
         x: {
           ticks: {
             callback: function (val, index) {
-              return index % 10 === 0 ? this.getLabelForValue(val) : ''
+              return index % 11 === 0 ? this.getLabelForValue(val) : ''
             },
           },
         },

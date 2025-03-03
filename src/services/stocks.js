@@ -4,7 +4,6 @@ const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY
 const baseUrl = 'https://api.twelvedata.com'
 let socket = null
 let shouldReconnect = true // ✅ Track whether reconnection is allowed
-
 const getStocksList = () => {
   return axios.get(`${baseUrl}/stocks`)
 }

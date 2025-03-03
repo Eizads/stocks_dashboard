@@ -4,7 +4,14 @@
     <div class="container bg-white full-width q-mb-md">
       <div class="row justify-center items-center">
         <div class="col-12 col-md-8 q-pa-md">
-          <q-input rounded outlined v-model="searchQuery" debounce="500" placeholder="stock name">
+          <q-input
+            autofocus
+            rounded
+            outlined
+            v-model="searchQuery"
+            debounce="500"
+            placeholder="stock name"
+          >
             <template v-slot:prepend>
               <q-icon name="search" color=""></q-icon>
             </template>
@@ -25,7 +32,7 @@
                 <div class="q-pa-md">
                   <q-list separator class="full-width">
                     <q-item
-                      :to="`/${stock.symbol}`"
+                      :to="`/${stock.exchange}-${stock.symbol}`"
                       v-for="(stock, index) in searchResult"
                       :key="index"
                       clickable
@@ -83,18 +90,23 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useStockStore } from 'src/stores/store'
+import { useRouter } from 'vue-router'
 
 export default {
-  setup() {
+  setup(_, { emit }) {
+    //keeping track of selected routes
+    const router = useRouter()
+
     const store = useStockStore()
 
     // eslint-disable-next-line no-unused-vars
     const $q = useQuasar()
     const searchQuery = ref('')
     const uptrend = ref(true)
+
     console.log(store.fetchStockList().value)
     const filteredStocks = computed(() => {
       if (!store.stocksList.length) return [] // ✅ Prevents returning undefined
@@ -123,10 +135,20 @@ export default {
       return sortedStocks.value.map((stock) => stock)
     })
 
+    //closing the search dialog even if the same route is selected again
+    const unregisterAfterEach = router.afterEach(() => {
+      console.log('🔄 Route changed! Closing modal...')
+      emit('closeSearchDialog')
+    })
+
     onMounted(async () => {
       if (store.stocksList.length === 0) {
         await store.fetchStockList() // ✅ Shared API call
       }
+    })
+    // ✅ Clean up listener when component is destroyed
+    onUnmounted(() => {
+      unregisterAfterEach()
     })
 
     return {
