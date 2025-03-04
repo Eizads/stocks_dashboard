@@ -26,13 +26,8 @@
               <div>
                 <div class="q-pa-md">
                   <q-list separator class="full-width">
-                    <q-item
-                      :to="`/${stock.exchange}-${stock.symbol}`"
-                      v-for="(stock, index) in searchResult"
-                      :key="index"
-                      clickable
-                      v-ripple
-                    >
+                    <!-- :to="`/${stock.exchange}-${stock.symbol}`" -->
+                    <q-item v-for="(stock, index) in searchResult" :key="index" clickable v-ripple>
                       <q-item-section avatar v-if="$q.screen.gt.xs">
                         <q-icon
                           v-if="uptrend"
@@ -72,8 +67,20 @@
                         }}</q-item-label>
                         <q-item-label> {{ stock.exchange.toUpperCase() }}</q-item-label>
                       </q-item-section>
-                    </q-item></q-list
-                  >
+
+                      <!-- add stock to watchlist -->
+                      <q-item-section avatar v-if="$q.screen.gt.xs">
+                        <q-icon
+                          :name="isInWatchList(stock) ? 'bi-dash-circle' : 'bi-plus-circle'"
+                          size="32px"
+                          :class="isInWatchList(stock) ? 'text-red' : 'text-blue'"
+                          class="relative"
+                          @click="isInWatchList(stock) ? removeStock(stock) : addStock(stock)"
+                        >
+                        </q-icon>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
                 </div>
               </div>
             </q-card-section>
@@ -95,6 +102,7 @@ export default {
   setup(_, { emit }) {
     const store = useStockStore()
     const router = useRouter()
+    const toggleStock = ref(false)
 
     // eslint-disable-next-line no-unused-vars
     const $q = useQuasar()
@@ -133,6 +141,22 @@ export default {
       emit('closeWatchListDialog')
     })
 
+    const addStock = (stock) => {
+      toggleStock.value = true
+      store.addToWatchList(stock)
+    }
+    const removeStock = (stock) => {
+      toggleStock.value = false
+      store.removeFromWatchList(stock)
+    }
+    const isInWatchList = (stock) => {
+      const isIn = store.watchList.some(
+        (s) => s.exchange === stock.exchange && s.symbol === stock.symbol,
+      )
+      console.log('is in watchlist', isIn)
+      return isIn
+    }
+
     onMounted(() => {
       if (store.stocksList.length === 0) {
         store.fetchStockList() // ✅ Shared API call
@@ -145,10 +169,14 @@ export default {
     return {
       filteredStocks,
       searchQuery,
-
+      store,
       searchResult,
       sortedStocks,
       uptrend,
+      toggleStock,
+      addStock,
+      removeStock,
+      isInWatchList,
     }
   },
 }

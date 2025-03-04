@@ -13,22 +13,30 @@
     </q-header>
 
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
-      <q-list>
-        <q-item>
-          <q-item-section>Watchlist</q-item-section>
+      <q-item>
+        <q-item-section>Watchlist</q-item-section>
+        <q-item-section avatar>
+          <q-icon color="primary" name="bi-plus" size="1.5rem" @click="openWatchlistModal = true" />
+        </q-item-section>
+      </q-item>
+      <q-list v-if="store.watchList.length > 0">
+        <q-item
+          :to="`/${stock.exchange}-${stock.symbol}`"
+          v-for="stock in store.watchList"
+          :key="stock.symbol"
+        >
+          <q-item-section>{{ stock.symbol }} - {{ stock.exchange }}</q-item-section>
           <q-item-section avatar>
             <q-icon
-              color="primary"
-              name="bi-plus"
-              size="1.5rem"
-              @click="openWatchlistModal = true"
-            />
+              :name="isInWatchList(stock) ? 'bi-dash-circle' : 'bi-plus-circle'"
+              size="32px"
+              :class="isInWatchList(stock) ? 'text-red' : 'text-blue'"
+              class="relative"
+              @click.stop.prevent="isInWatchList(stock) ? removeStock(stock) : addStock(stock)"
+            >
+            </q-icon>
           </q-item-section>
         </q-item>
-        <!-- <q-item-label header> Watchlist </q-item-label>
-        <q-icon name="bi-plus" size="1.5rem" @click="openSearchModal = true"></q-icon> -->
-
-        <EssentialLink v-for="link in linksList" :key="link.title" v-bind="link" />
       </q-list>
     </q-drawer>
     <q-dialog v-model="openSearchModal" position="top" maximized>
@@ -46,24 +54,14 @@
 
 <script>
 import { defineComponent, ref } from 'vue'
-import EssentialLink from 'components/EssentialLink.vue'
 import SearchComponent from 'src/components/SearchComponent.vue'
 import WatchlistComponent from 'src/components/watchlistComponent.vue'
-
-const linksList = [
-  {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev',
-  },
-]
+import { useStockStore } from 'stores/store'
 
 export default defineComponent({
   name: 'MainLayout',
 
   components: {
-    EssentialLink,
     SearchComponent,
     WatchlistComponent,
   },
@@ -72,15 +70,29 @@ export default defineComponent({
     const leftDrawerOpen = ref(false)
     const openSearchModal = ref(false)
     const openWatchlistModal = ref(false)
+    const store = useStockStore()
+
+    const addStock = (stock) => {
+      store.addToWatchList(stock)
+    }
+    const removeStock = (stock) => {
+      store.removeFromWatchList(stock)
+    }
+    const isInWatchList = (stock) => {
+      return store.watchList.some((s) => s.exchange === stock.exchange && s.symbol === stock.symbol)
+    }
 
     return {
-      linksList,
       leftDrawerOpen,
       toggleLeftDrawer() {
         leftDrawerOpen.value = !leftDrawerOpen.value
       },
       openSearchModal,
       openWatchlistModal,
+      store,
+      removeStock,
+      addStock,
+      isInWatchList,
     }
   },
 })

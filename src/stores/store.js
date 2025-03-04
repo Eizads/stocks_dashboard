@@ -5,6 +5,7 @@ import stocksService from 'src/services/stocks'
 export const useStockStore = defineStore('stockStore', () => {
   const stocksList = ref([])
   let stockHistory = ref([])
+  const watchList = ref([])
 
   const fetchStockList = async () => {
     if (stocksList.value.length > 0) return // ✅ Prevent duplicate API calls
@@ -50,5 +51,42 @@ export const useStockStore = defineStore('stockStore', () => {
       hour12: true,
     })
 
-  return { stocksList, stockHistory, fetchStockList, getFormattedTime, fetchStockHistory }
+  const addToWatchList = (stock) => {
+    const exists = watchList.value.find(
+      (s) => s.exchange === stock.exchange && s.symbol === stock.symbol,
+    )
+    if (!exists) {
+      watchList.value.push(stock)
+      console.log('WatchList Updated:', watchList.value)
+    }
+  }
+
+  const removeFromWatchList = (stock) => {
+    // Ensure the stock exists before removing it
+    const exists = watchList.value.some(
+      (s) => s.exchange === stock.exchange && s.symbol === stock.symbol,
+    )
+
+    if (exists) {
+      const updatedWatchlist = watchList.value.filter(
+        (s) => !(s.exchange === stock.exchange && s.symbol === stock.symbol), // ✅ Remove matching stock
+      )
+      watchList.value = [...updatedWatchlist]
+      console.log(`✅ Removed ${stock.exchange}-${stock.symbol} from watchlist`)
+    } else {
+      console.log(`⚠️ Stock ${stock.exchange}-${stock.symbol} not found in watchlist`)
+    }
+
+    console.log('📋 Updated Watchlist:', watchList.value)
+  }
+  return {
+    stocksList,
+    stockHistory,
+    watchList,
+    fetchStockList,
+    getFormattedTime,
+    fetchStockHistory,
+    addToWatchList,
+    removeFromWatchList,
+  }
 })
