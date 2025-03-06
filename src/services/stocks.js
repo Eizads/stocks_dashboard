@@ -15,8 +15,8 @@ const getStockHistory = (symbol) => {
     params: {
       symbol,
       interval: '5min', // ✅ Fetch 5-minute interval prices
-      start_date: `2025-02-27 09:30:00`, // ✅ Fetch from 9 AM (Market Open)
-      end_date: `2025-02-27 16:00:00`, // ✅ Fetch until now
+      start_date: `${today} 09:30:00`, // ✅ Fetch from 9 AM (Market Open)
+      end_date: `${today} 16:00:00`, // ✅ Fetch until now
       apikey: apiKey,
     },
   })

@@ -46,15 +46,14 @@ export default defineComponent({
         })
         times.push(label)
 
-        // Increment the startTime by 1 minute
-        startTime.setMinutes(startTime.getMinutes() + 1)
+        // Increment the startTime by 5 minute
+        startTime.setMinutes(startTime.getMinutes() + 5)
       }
 
       return times
     }
 
     const timestamps = ref(generateTimeLabels())
-    // console.log('time labels', timestamps.value)
 
     // chart setup
     const chartData = computed(() => ({
@@ -62,8 +61,10 @@ export default defineComponent({
 
       datasets: [
         {
-          data: selectedStockHistory.value,
-          backgroundColor: ['#77CEFF'],
+          data: prices.value,
+          backgroundColor: ['#4caf50'],
+          borderColor: ['#4caf50'],
+          pointRadius: 0,
         },
       ],
     }))
@@ -79,15 +80,22 @@ export default defineComponent({
           text: 'Chart.js Line Chart',
         },
       },
+
       scales: {
         x: {
+          grid: {
+            display: false, // ✅ Remove X-axis grid lines
+          },
           ticks: {
             callback: function (val, index) {
-              return index % 11 === 0 ? this.getLabelForValue(val) : ''
+              return index % 12 === 0 ? this.getLabelForValue(val) : ''
             },
           },
         },
         y: {
+          grid: {
+            display: false, // ✅ Remove X-axis grid lines
+          },
           display: true,
           beginAtZero: false,
 
@@ -100,32 +108,24 @@ export default defineComponent({
       chartData,
       options,
     })
-    const prices = ref(Array(timestamps.value.length).fill(null))
+    const prices = ref([])
+
+    console.log('prices with hisotry added', prices)
+    console.log('prices empty', prices)
+
+    const minutePriceAdded = new Set() //tracks which minutes have been added
 
     const updateChart = (price, time) => {
       console.log('price', price)
-      console.log('time', time)
-      const startTime = new Date(new Date().setHours(9, 30, 0, 0))
-      const endTime = new Date(new Date().setHours(16, 0, 0, 0))
 
-      console.log('startTime', startTime)
-      console.log('startTime', endTime)
-
-      if (time >= startTime && time <= endTime) {
-        const currentMinute = time
-        if (
-          lastUpdatedTime.value == null ||
-          (currentMinute !== lastUpdatedTime.value + 1 && lastUpdatedTime.value !== currentMinute)
-        ) {
-          prices.value.push({ x: time, y: price }) // ✅ Add new data point dynamically
-          prices.value = [...prices.value]
-          lastUpdatedTime.value = currentMinute
-          console.log('prices', prices.value)
-        } else {
-          console.log(`⏳ Ignoring duplicate update for ${time}`)
-        }
+      const currentMinute = time
+      const hasMinute = timestamps.value.includes(currentMinute)
+      if (hasMinute && !minutePriceAdded.has(currentMinute)) {
+        prices.value = [{ x: time, y: price }, ...prices.value]
+        minutePriceAdded.add(currentMinute) //Store the minute as processed
+        console.log('Added first price for', currentMinute)
       } else {
-        console.warn(`⚠️ Ignored timestamp (${time}), outside of X-axis range`)
+        console.log(`⏳ Ignoring duplicate update for ${currentMinute}`)
       }
     }
 
@@ -134,7 +134,12 @@ export default defineComponent({
       stocksService.connectWebSocket(props.stockSymbol, updateChart)
 
       //getting stock history
-      selectedStockHistory.value = await store.fetchStockHistory(props.stockSymbol)
+      const historyData = await store.fetchStockHistory(props.stockSymbol)
+      if (historyData.length > 0) {
+        // selectedStockHistory.value = [...historyData]
+        prices.value = [...historyData]
+        lastUpdatedTime.value = historyData[0].x // ✅ Store last historical timestamp
+      }
     })
 
     onUnmounted(() => {

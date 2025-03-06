@@ -23,7 +23,7 @@ export const useStockStore = defineStore('stockStore', () => {
   const fetchStockHistory = async (symbol) => {
     try {
       const response = await stocksService.getStockHistory(symbol)
-      // console.log('history data', response.data)
+      console.log('history data', response.data)
       if (response.data) {
         stockHistory.value = response.data?.values.map((data) => {
           const dateObj = new Date(data.datetime.replace(' ', 'T'))
