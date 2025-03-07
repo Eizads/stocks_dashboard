@@ -15,31 +15,20 @@
           <h1 class="text-white">Take Control<br />of Your Future</h1>
         </div>
       </div>
-      <!-- <q-img
-        loading="eager"
-        no-transition
-        spinner-color="white"
-        src="/page1/banner.jpg"
-        style="width: 100vw; height: auto; overflow: hidden"
-      ></q-img> -->
     </div>
   </q-page>
 </template>
 
 <script>
 import { defineComponent, onMounted } from 'vue'
-// import stocksService from 'src/services/stocks'
-// import SearchComponent from 'src/components/SearchComponent.vue'
+import { useStockStore } from 'src/stores/store'
 
 export default defineComponent({
   name: 'IndexPage',
-  components: {
-    // SearchComponent,
-  },
+  components: {},
   setup() {
-    // stocksService.getStocksList().then((response) => console.log(response.data))
-    const dateFormat = new Date().toLocaleTimeString()
-    console.log('format', dateFormat)
+    const store = useStockStore()
+    console.log('TODAY', store.getToday())
     onMounted(() => {})
   },
 })

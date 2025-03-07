@@ -1,6 +1,7 @@
 <template>
   <div id="app" style="width: 100%">
-    <!-- {{ selectedStockHistory }} -->
+    <!-- <p>📅 Yesterday's Data: {{ yesterdayData.length > 0 ? yesterdayData : 'No data' }}</p>
+    <p>📅 Today's Data: {{ todayData.length > 0 ? todayData : 'No data' }}</p> -->
     <LineChart v-bind="lineChartProps" />
   </div>
 </template>
@@ -22,11 +23,14 @@ export default defineComponent({
     stockSymbol: String,
     stockExchange: String,
   },
+
   setup(props) {
     const store = useStockStore()
     const lastUpdatedTime = ref(null)
     const formattedArray = ref([])
-    const selectedStockHistory = ref([])
+
+    const yesterdayData = ref([]) // ✅ Stores yesterday's data
+    const todayData = ref([])
 
     const generateTimeLabels = () => {
       const times = []
@@ -47,7 +51,7 @@ export default defineComponent({
         times.push(label)
 
         // Increment the startTime by 5 minute
-        startTime.setMinutes(startTime.getMinutes() + 5)
+        startTime.setMinutes(startTime.getMinutes() + 1)
       }
 
       return times
@@ -73,11 +77,7 @@ export default defineComponent({
       responsive: true,
       plugins: {
         legend: {
-          position: 'top',
-        },
-        title: {
-          display: true,
-          text: 'Chart.js Line Chart',
+          display: false,
         },
       },
 
@@ -128,17 +128,45 @@ export default defineComponent({
         console.log(`⏳ Ignoring duplicate update for ${currentMinute}`)
       }
     }
+    console.log('get todayy', store.getYesterday())
 
     onMounted(async () => {
       console.log('📡 Connecting WebSocket...')
       stocksService.connectWebSocket(props.stockSymbol, updateChart)
 
       //getting stock history
-      const historyData = await store.fetchStockHistory(props.stockSymbol)
-      if (historyData.length > 0) {
-        // selectedStockHistory.value = [...historyData]
-        prices.value = [...historyData]
-        lastUpdatedTime.value = historyData[0].x // ✅ Store last historical timestamp
+      const { yesterdayData: yData, todayData: tData } = await store.fetchStockHistory(
+        props.stockSymbol,
+      )
+      yesterdayData.value = yData
+      todayData.value = tData
+      if (yesterdayData.value.length > 0 && todayData.value.length > 0) {
+        console.log('📊 today history', todayData.value)
+        console.log('📊 yesterday data', yesterdayData.value)
+        //get current time
+        const now = new Date()
+        //define market open and close times
+        const startTime = new Date()
+        startTime.setHours(9, 30, 0, 0) // set start time to 9:00 a.m.
+
+        const endTime = new Date()
+        endTime.setHours(16, 0, 0, 0) // set end time to 4:00 p.m.
+        // ✅ Get today's date in `YYYY-MM-DD` format from store
+        const todayDateString = store.getToday()
+        const todayDate = new Date(todayDateString) // ✅ Convert to Date object
+
+        if (now.toDateString() === todayDate.toDateString() && now >= startTime) {
+          console.log("📅 Market is open today, showing today's data.")
+
+          prices.value = [...todayData.value]
+          lastUpdatedTime.value = todayData.value[0].x // ✅ Store last historical timestamp
+        } else {
+          console.log(
+            "📅 Market is not open yet or today is a non-trading day, showing yesterday's data.",
+          )
+          prices.value = [...yesterdayData.value]
+          lastUpdatedTime.value = yesterdayData.value[0].x // ✅ Store last historical timestamp
+        }
       }
     })
 
@@ -156,7 +184,7 @@ export default defineComponent({
       },
     )
 
-    return { lineChartProps, selectedStockHistory, lineChartRef, store, formattedArray }
+    return { lineChartProps, lineChartRef, store, formattedArray }
   },
 })
 </script>

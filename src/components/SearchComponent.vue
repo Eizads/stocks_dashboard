@@ -33,6 +33,7 @@
                   <q-list separator class="full-width">
                     <q-item
                       :to="`/${stock.exchange}-${stock.symbol}`"
+                      @click="store.setSelectedStock(stock)"
                       v-for="(stock, index) in searchResult"
                       :key="index"
                       clickable
@@ -158,6 +159,7 @@ export default {
       searchResult,
       sortedStocks,
       uptrend,
+      store,
     }
   },
 }

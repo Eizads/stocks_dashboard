@@ -1,12 +1,26 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import stocksService from 'src/services/stocks'
 
 export const useStockStore = defineStore('stockStore', () => {
   const stocksList = ref([])
-  let stockHistory = ref([])
+  let stockHistoryYesterday = ref([])
+  let stockHistoryToday = ref([])
   const watchList = ref([])
+  const liveData = ref([])
+  const selectedStock = ref(null)
 
+  const getToday = () => {
+    return new Intl.DateTimeFormat('en-CA').format(new Date()) //today
+  }
+  const getYesterday = () => {
+    const yesterdayDate = new Date()
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+    return new Intl.DateTimeFormat('en-CA').format(yesterdayDate) //yesterday
+  }
+  const setSelectedStock = (stock) => {
+    selectedStock.value = { ...stock } // ✅ Updates store reactively
+  }
   const fetchStockList = async () => {
     if (stocksList.value.length > 0) return // ✅ Prevent duplicate API calls
 
@@ -23,9 +37,19 @@ export const useStockStore = defineStore('stockStore', () => {
   const fetchStockHistory = async (symbol) => {
     try {
       const response = await stocksService.getStockHistory(symbol)
-      console.log('history data', response.data)
       if (response.data) {
-        stockHistory.value = response.data?.values.map((data) => {
+        console.log('history data', response.data)
+        const yesterdayData = response.data?.values.filter((data) =>
+          data.datetime?.startsWith(getYesterday()),
+        )
+        const todayData = response.data?.values.filter((data) =>
+          data.datetime?.startsWith(getToday()),
+        )
+        console.log()
+        console.log("📊 Yesterday's Data:", yesterdayData)
+        console.log("📊 Today's Data:", todayData)
+        // const todayData = historyData.filter((data) => data.datetime?.startsWith(today))
+        stockHistoryYesterday.value = yesterdayData?.map((data) => {
           const dateObj = new Date(data.datetime.replace(' ', 'T'))
           return {
             x: dateObj.toLocaleTimeString('en-US', {
@@ -36,14 +60,29 @@ export const useStockStore = defineStore('stockStore', () => {
             y: parseFloat(data.close), // ✅ Convert price to float
           }
         })
-        console.log('stock history', stockHistory)
-        return stockHistory.value
+        stockHistoryToday.value = todayData?.map((data) => {
+          const dateObj = new Date(data.datetime.replace(' ', 'T'))
+          return {
+            x: dateObj.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            }), // format the date to '3:55 PM'
+            y: parseFloat(data.close), // ✅ Convert price to float
+          }
+        })
+        console.log('stock history', stockHistoryYesterday.value)
+        return {
+          todayData: stockHistoryToday.value,
+          yesterdayData: stockHistoryYesterday.value,
+        }
       }
     } catch (error) {
       console.error('Error fetching price history', error)
-      return []
+      return { todayData: [], yesterdayData: [] }
     }
   }
+
   const getFormattedTime = () =>
     new Date().toLocaleTimeString('en-US', {
       hour: 'numeric',
@@ -79,14 +118,35 @@ export const useStockStore = defineStore('stockStore', () => {
 
     console.log('📋 Updated Watchlist:', watchList.value)
   }
+  const addLiveData = (newData) => {
+    if (!liveData.value.some((p) => p.price === newData.price)) {
+      liveData.value = [...liveData.value, newData]
+      // console.log('live ----------', liveData.value)
+    }
+    if (liveData.value.length > 100) {
+      // ✅ Keep only the last 100 entries
+      liveData.value.shift()
+    }
+  }
+  const latestStockPrice = computed(() => {
+    return liveData.value.length > 0 ? liveData.value[liveData.value.length - 1].price : ''
+  })
   return {
+    getToday,
+    getYesterday,
     stocksList,
-    stockHistory,
+    stockHistoryYesterday,
+    stockHistoryToday,
     watchList,
     fetchStockList,
     getFormattedTime,
     fetchStockHistory,
     addToWatchList,
     removeFromWatchList,
+    liveData,
+    addLiveData,
+    latestStockPrice,
+    selectedStock,
+    setSelectedStock,
   }
 })

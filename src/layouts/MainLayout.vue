@@ -24,6 +24,7 @@
           :to="`/${stock.exchange}-${stock.symbol}`"
           v-for="stock in store.watchList"
           :key="stock.symbol"
+          @click="store.setSelectedStock(stock)"
         >
           <q-item-section>{{ stock.symbol }} - {{ stock.exchange }}</q-item-section>
           <q-item-section avatar>

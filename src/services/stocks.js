@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useStockStore } from 'src/stores/store'
 
 const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY
 const baseUrl = 'https://api.twelvedata.com'
@@ -9,14 +10,19 @@ const getStocksList = () => {
 }
 
 const getStockHistory = (symbol) => {
-  const today = new Intl.DateTimeFormat('en-CA').format(new Date())
-  console.log('today', today)
+  const store = useStockStore()
+
+  // const today = new Intl.DateTimeFormat('en-CA').format(new Date()) //today
+  // const yesterdayDate = new Date()
+  // yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+  // const yesterday = new Intl.DateTimeFormat('en-CA').format(yesterdayDate) //yesterday
+  // console.log('today', today)
   return axios.get(`${baseUrl}/time_series`, {
     params: {
       symbol,
-      interval: '5min', // ✅ Fetch 5-minute interval prices
-      start_date: `${today} 09:30:00`, // ✅ Fetch from 9 AM (Market Open)
-      end_date: `${today} 16:00:00`, // ✅ Fetch until now
+      interval: '1min', // ✅ Fetch 1-minute interval prices
+      start_date: `${store.getYesterday()} 09:30:00`, // ✅ Fetch from 9 AM (Market Open)
+      end_date: `${store.getToday()} 16:00:00`, // ✅ Fetch until now
       apikey: apiKey,
     },
   })
@@ -24,6 +30,7 @@ const getStockHistory = (symbol) => {
 
 //websocket function for live updates
 const connectWebSocket = (symbol, onMessageCallback) => {
+  const store = useStockStore()
   if (socket) {
     console.log('🛑 Closing existing WebSocket before opening a new one...')
     socket.close()
@@ -35,6 +42,7 @@ const connectWebSocket = (symbol, onMessageCallback) => {
   }
   socket.onmessage = (event) => {
     const data = JSON.parse(event.data)
+    store.addLiveData(data)
     console.log('data from websocket ', data)
     if (data.price) {
       onMessageCallback(
@@ -60,7 +68,7 @@ const connectWebSocket = (symbol, onMessageCallback) => {
   }
   return socket
 }
-export function disconnectWebSocket() {
+const disconnectWebSocket = () => {
   shouldReconnect = false
   if (socket) {
     console.log('🛑 Unsubscribing and Closing WebSocket...')

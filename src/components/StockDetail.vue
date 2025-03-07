@@ -1,33 +1,42 @@
 <template>
-  <div>
-    <h1>stock detail</h1>
-    <ChartTestLine :stockExchange="route.params.exchange" :stockSymbol="route.params.symbol" />
-    <!-- <StockChart :stockSymbol="route.params.symbol" /> -->
+  <div class="containr">
+    <div class="row justify-center items-center">
+      <div class="col-12 q-px-xl">
+        <!-- <h1 class="text-h4">{{ store.selectedStock.name }}</h1>
+        <h2 class="text-h5">
+          {{ store.selectedStock.exchange }}: {{ store.selectedStock.symbol }}
+        </h2>
+        <h3 v-if="latestStockPrice" class="text-h4">
+          {{ latestStockPrice }} {{ store.selectedStock.currency }}
+        </h3> -->
+        <ChartTestLine :stockExchange="route.params.exchange" :stockSymbol="route.params.symbol" />
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { useRoute } from 'vue-router'
-// import StockChart from './StockChart.vue'
+import { ref, computed } from 'vue'
+
 import ChartTestLine from './ChartTestLine.vue'
 import { useStockStore } from 'src/stores/store'
 export default {
   components: {
-    // StockChart,
     ChartTestLine,
   },
   setup() {
     const route = useRoute()
     const store = useStockStore()
-    // const now = new Date()
-    // const start = new Date(now.getHours(), now.getMinutes(), 9, 0, 0)
-    // const end = new Date(now.getHours(), now.getMinutes(), 16, 0, 0)
+    const liveData = ref([])
+
+    const latestStockPrice = computed(() => store.latestStockPrice)
+
     return {
       route,
-      // now,
-      // start,
-      // end,
       store,
+      liveData,
+      latestStockPrice,
     }
   },
 }
