@@ -1,6 +1,9 @@
 import axios from 'axios'
 import { useStockStore } from 'src/stores/store'
+import { useDateUtils } from 'src/composables/useDateUtils'
 
+const { getToday, getYesterday, getLastTradingDay, isWeekday } = useDateUtils()
+let startDate, endDate
 const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY
 const baseUrl = 'https://api.twelvedata.com'
 let socket = null
@@ -10,19 +13,20 @@ const getStocksList = () => {
 }
 
 const getStockHistory = (symbol) => {
-  const store = useStockStore()
-
-  // const today = new Intl.DateTimeFormat('en-CA').format(new Date()) //today
-  // const yesterdayDate = new Date()
-  // yesterdayDate.setDate(yesterdayDate.getDate() - 1)
-  // const yesterday = new Intl.DateTimeFormat('en-CA').format(yesterdayDate) //yesterday
-  // console.log('today', today)
+  const now = new Date()
+  if (isWeekday(now)) {
+    startDate = `${getYesterday()} 09:30:00`
+    endDate = `${getToday()} 16:00:00`
+  } else {
+    startDate = `${getLastTradingDay()} 09:30:00`
+    endDate = `${getLastTradingDay()} 16:00:00`
+  }
   return axios.get(`${baseUrl}/time_series`, {
     params: {
       symbol,
       interval: '1min', // ✅ Fetch 1-minute interval prices
-      start_date: `${store.getYesterday()} 09:30:00`, // ✅ Fetch from 9 AM (Market Open)
-      end_date: `${store.getToday()} 16:00:00`, // ✅ Fetch until now
+      start_date: startDate, // ✅ Fetch from 9 AM (Market Open)
+      end_date: endDate, // ✅ Fetch until now
       apikey: apiKey,
     },
   })

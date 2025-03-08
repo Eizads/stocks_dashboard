@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import stocksService from 'src/services/stocks'
+import { useDateUtils } from 'src/composables/useDateUtils'
 
 export const useStockStore = defineStore('stockStore', () => {
+  const { getToday, getYesterday, isWeekday, getLastTradingDay } = useDateUtils()
   const stocksList = ref([])
   let stockHistoryYesterday = ref([])
   let stockHistoryToday = ref([])
@@ -10,14 +12,6 @@ export const useStockStore = defineStore('stockStore', () => {
   const liveData = ref([])
   const selectedStock = ref(null)
 
-  const getToday = () => {
-    return new Intl.DateTimeFormat('en-CA').format(new Date()) //today
-  }
-  const getYesterday = () => {
-    const yesterdayDate = new Date()
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1)
-    return new Intl.DateTimeFormat('en-CA').format(yesterdayDate) //yesterday
-  }
   const setSelectedStock = (stock) => {
     selectedStock.value = { ...stock } // ✅ Updates store reactively
   }
@@ -39,12 +33,27 @@ export const useStockStore = defineStore('stockStore', () => {
       const response = await stocksService.getStockHistory(symbol)
       if (response.data) {
         console.log('history data', response.data)
+        const now = new Date()
+        let yesterday, today
+
+        if (isWeekday(now)) {
+          // ✅ If today is a weekday, use yesterday and today
+          yesterday = getYesterday()
+          today = getToday()
+        } else {
+          // ✅ If today is a weekend, get last Friday
+          yesterday = getLastTradingDay() // Friday
+          today = getLastTradingDay() // Use the same Friday data
+        }
+
+        console.log('📅 Fetching data for:')
+        console.log('➡️ Yesterday:', yesterday)
+        console.log('➡️ Today:', today)
+
         const yesterdayData = response.data?.values.filter((data) =>
-          data.datetime?.startsWith(getYesterday()),
+          data.datetime?.startsWith(yesterday),
         )
-        const todayData = response.data?.values.filter((data) =>
-          data.datetime?.startsWith(getToday()),
-        )
+        const todayData = response.data?.values.filter((data) => data.datetime?.startsWith(today))
         console.log()
         console.log("📊 Yesterday's Data:", yesterdayData)
         console.log("📊 Today's Data:", todayData)
@@ -132,8 +141,6 @@ export const useStockStore = defineStore('stockStore', () => {
     return liveData.value.length > 0 ? liveData.value[liveData.value.length - 1].price : ''
   })
   return {
-    getToday,
-    getYesterday,
     stocksList,
     stockHistoryYesterday,
     stockHistoryToday,

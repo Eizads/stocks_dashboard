@@ -12,6 +12,8 @@ import { LineChart, useLineChart } from 'vue-chart-3'
 import { ref, computed, defineComponent, watch, onMounted, onUnmounted } from 'vue'
 import stocksService from 'src/services/stocks.js'
 import { useStockStore } from 'src/stores/store'
+import { useDateUtils } from 'src/composables/useDateUtils'
+
 Chart.register(...registerables)
 
 export default defineComponent({
@@ -26,6 +28,7 @@ export default defineComponent({
 
   setup(props) {
     const store = useStockStore()
+    const { getToday, getYesterday } = useDateUtils()
     const lastUpdatedTime = ref(null)
     const formattedArray = ref([])
 
@@ -128,7 +131,7 @@ export default defineComponent({
         console.log(`⏳ Ignoring duplicate update for ${currentMinute}`)
       }
     }
-    console.log('get todayy', store.getYesterday())
+    console.log('get todayy', getYesterday())
 
     onMounted(async () => {
       console.log('📡 Connecting WebSocket...')
@@ -152,7 +155,7 @@ export default defineComponent({
         const endTime = new Date()
         endTime.setHours(16, 0, 0, 0) // set end time to 4:00 p.m.
         // ✅ Get today's date in `YYYY-MM-DD` format from store
-        const todayDateString = store.getToday()
+        const todayDateString = getToday()
         const todayDate = new Date(todayDateString) // ✅ Convert to Date object
 
         if (now.toDateString() === todayDate.toDateString() && now >= startTime) {
