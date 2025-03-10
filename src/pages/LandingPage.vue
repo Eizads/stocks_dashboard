@@ -13,7 +13,6 @@
       <div class="row align-center justify-center q-pa-md">
         <div class="col-12 col-md-11">
           <h1 class="text-white">Take Control<br />of Your Future</h1>
-          <p class="text-white">{{ now }}</p>
         </div>
       </div>
     </div>
@@ -24,15 +23,11 @@
 import { defineComponent, onMounted } from 'vue'
 
 export default defineComponent({
-  name: 'IndexPage',
+  name: 'LandingPage',
   components: {},
   setup() {
-    const today = new Intl.DateTimeFormat('en-CA').format(new Date()) //today
-    const now = new Date()
-    console.log('type of-------', typeof now)
-
     onMounted(() => {})
-    return { today, now }
+    return {}
   },
 })
 </script>

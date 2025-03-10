@@ -3,7 +3,7 @@ const routes = [
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
-    children: [{ path: '', component: () => import('pages/IndexPage.vue') }],
+    children: [{ path: '', component: () => import('src/pages/LandingPage.vue') }],
   },
   {
     path: '/',
@@ -11,7 +11,7 @@ const routes = [
     children: [
       { path: '/:exchange-:symbol', component: StockDetail },
 
-      { path: '', component: () => import('pages/IndexPage.vue') },
+      { path: '', component: () => import('src/pages/LandingPage.vue') },
     ],
   },
 

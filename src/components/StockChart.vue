@@ -1,97 +1,39 @@
 <template>
-  <q-card class="q-pa-md">
-    <q-card-section>
-      <h5>Live Stock Chart: {{ stockSymbol }}</h5>
-      {{ timeSeries }}
-    </q-card-section>
-    <q-card-section>
-      <LineChart ref="lineChartRef" :chart-data="chartData" :chart-options="options" />
-    </q-card-section>
-  </q-card>
+  <div id="app" style="width: 100%; min-height: 500px">
+    <!-- <p>📅 Yesterday's Data: {{ yesterdayData.length > 0 ? yesterdayData : 'No data' }}</p>
+    <p>📅 Today's Data: {{ todayData.length > 0 ? todayData : 'No data' }}</p> -->
+    <LineChart ref="myChart" v-bind="lineChartProps" />
+  </div>
 </template>
 
 <script>
-import { defineComponent, ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useStockStore } from 'src/stores/store'
+import { Chart, registerables } from 'chart.js'
+import { LineChart, useLineChart } from 'vue-chart-3'
+import { ref, computed, defineComponent, watch, onMounted, onUnmounted } from 'vue'
 import stocksService from 'src/services/stocks.js'
-import { LineChart } from 'vue-chart-3'
-import {
-  Chart,
-  LineController,
-  LineElement,
-  PointElement,
-  LinearScale,
-  TimeScale,
-  CategoryScale,
-  Title,
-  Tooltip,
-} from 'chart.js'
-import 'chartjs-adapter-date-fns' // ✅ Required for time-based X-axis
+import { useStockStore } from 'src/stores/store'
+import { useDateUtils } from 'src/composables/useDateUtils'
 
-// ✅ Register only required Chart.js modules (Tree-Shakable)
-Chart.register(
-  LineController,
-  LineElement,
-  PointElement,
-  LinearScale,
-  TimeScale,
-  CategoryScale,
-  Title,
-  Tooltip,
-)
+Chart.register(...registerables)
 
 export default defineComponent({
-  components: { LineChart },
-  props: { stockSymbol: String },
+  name: 'App',
+  components: {
+    LineChart,
+  },
+  props: {
+    stockSymbol: String,
+    stockExchange: String,
+  },
+
   setup(props) {
-    const timeSeries = ref([])
     const store = useStockStore()
-    const lastUpdatedTime = ref(null) // ✅ Track last updated time every 5 mins
-    // Define reactive min/max values for Y-axis
-    const suggestedMin = ref(null)
-    const suggestedMax = ref(null)
+    const { getToday, getYesterday } = useDateUtils()
+    const lastUpdatedTime = ref(null)
+    const formattedArray = ref([])
 
-    const options = ref({
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: {
-          display: true,
-          type: 'time',
-          time: {
-            unit: 'hour', // ✅ Show only full hours
-            stepSize: 1, // ✅ Ensure one label per hour
-            displayFormats: {
-              hour: 'h:mm a', // ✅ Format as "11:00 AM", "12:00 PM", etc.
-            },
-          },
-          ticks: {
-            autoSkip: false, // ✅ Prevents skipping full hours
-            source: 'auto',
-            maxTicksLimit: 8, // ✅ Limits the number of labels to avoid clutter
-          },
-          min: new Date().setHours(9, 30, 0, 0), // ✅ Start at 9 AM
-          max: new Date().setHours(16, 0, 0, 0), // ✅ End at 4 PM
-        },
-        y: {
-          display: true,
-          beginAtZero: false,
-          suggestedMin: suggestedMin.value, // ✅ min value
-          suggestedMax: suggestedMax.value, // ✅ max value
-          ticks: {
-            callback: function (value) {
-              return value.toFixed(2) // Ensures 2 decimal places
-            },
-
-            stepSize: 0.5, // Adjust this based on your range
-
-            autoSkip: false, // ✅ Prevents skipping full hours
-            source: 'auto',
-            maxTicksLimit: 5, // ✅ Limits the number of labels to avoid clutter
-          },
-        },
-      },
-    })
+    const yesterdayData = ref([]) // Stores yesterday's data
+    const todayData = ref([])
 
     const generateTimeLabels = () => {
       const times = []
@@ -101,7 +43,6 @@ export default defineComponent({
 
       const endTime = new Date()
       endTime.setHours(16, 0, 0, 0) // set end time to 4:00 p.m.
-
       // Loop until the startTime exceeds the endTime
       while (startTime <= endTime) {
         // Format the current time label
@@ -112,7 +53,7 @@ export default defineComponent({
         })
         times.push(label)
 
-        // Increment the startTime by 1 minute
+        // Increment the startTime by 5 minute
         startTime.setMinutes(startTime.getMinutes() + 1)
       }
 
@@ -120,74 +61,135 @@ export default defineComponent({
     }
 
     const timestamps = ref(generateTimeLabels())
-    const prices = ref(Array(timestamps.value.length).fill(null))
 
-    console.log('timestamps', timestamps.value)
+    // chart setup
     const chartData = computed(() => ({
       labels: timestamps.value,
+
       datasets: [
         {
-          label: `Stock Price (${props.stockSymbol})`,
           data: prices.value,
-          borderColor: 'blue',
-          backgroundColor: 'rgba(0, 0, 255, 0.2)',
-          tension: 0.3,
+          backgroundColor: ['#4caf50'],
+          borderColor: ['#4caf50'],
+
+          pointRadius: 0,
         },
       ],
-      options: Object.assign({}, options.value),
     }))
+
+    const options = ref({
+      responsive: true,
+      plugins: {
+        legend: {
+          display: false,
+        },
+
+        colors: {
+          forceOverride: true,
+        },
+      },
+
+      scales: {
+        x: {
+          grid: {
+            display: false, // Remove X-axis grid lines
+          },
+          ticks: {
+            callback: function (val, index) {
+              return index % 12 === 0 ? this.getLabelForValue(val) : ''
+            },
+          },
+        },
+        y: {
+          grid: {
+            display: false, // Remove X-axis grid lines
+          },
+          display: true,
+          beginAtZero: false,
+
+          ticks: {},
+        },
+      },
+    })
+
+    const { lineChartProps, lineChartRef } = useLineChart({
+      chartData,
+      options,
+    })
+
+    const prices = ref([])
+
+    console.log('prices with hisotry added', prices)
+    console.log('prices empty', prices)
+
+    const minutePriceAdded = new Set() //tracks which minutes have been added
 
     const updateChart = (price, time) => {
       console.log('price', price)
-      console.log('time', time)
 
-      const minTime = new Date(options.value.scales.x.min)
-      const maxTime = new Date(options.value.scales.x.max)
-
-      console.log('min', minTime)
-      console.log('max', maxTime)
-      debugger
-      if (time >= minTime && time <= maxTime) {
-        const currentMinute = time
-
-        // ✅ Only update if it's a new minute
-        if (
-          lastUpdatedTime.value == null ||
-          (currentMinute >= lastUpdatedTime.value + 1 && lastUpdatedTime.value !== currentMinute) ||
-          currentMinute === 0
-        ) {
-          prices.value.push({ x: time, y: price }) // ✅ Add new data point dynamically
-          prices.value = [...prices.value] // ✅ Force Vue reactivity update
-          lastUpdatedTime.value = currentMinute
-
-          // ✅ Keep Y-axis stable while setting a reasonable range
-          const minPrice = Math.min(...prices.value.map((d) => d.y)) * 0.98 // 2% buffer below
-          const maxPrice = Math.max(...prices.value.map((d) => d.y)) * 1.02 // 2% buffer above
-
-          options.value.scales.y.suggestedMin = minPrice
-          options.value.scales.y.suggestedMax = maxPrice
-        } else {
-          console.log(`⏳ Ignoring duplicate update for ${time}`)
-        }
+      const currentMinute = time
+      const hasMinute = timestamps.value.includes(currentMinute)
+      if (hasMinute && !minutePriceAdded.has(currentMinute)) {
+        prices.value = [{ x: time, y: price }, ...prices.value]
+        minutePriceAdded.add(currentMinute) //Store the minute as processed
+        console.log('Added first price for', currentMinute)
       } else {
-        console.warn(`⚠️ Ignored timestamp (${time}), outside of X-axis range`)
-      }
-      // ✅ Find the matching index in the X-axis labels
-      const index = timestamps.value.findIndex((t) => t === time)
-
-      if (index !== -1) {
-        prices.value[index] = price // ✅ Update only the matching time slot
-        prices.value = [...prices.value] // ✅ Force reactivity update for Vue
-      } else {
-        console.warn(`Received timestamp (${time}) does not match any X-axis labels`)
+        console.log(`⏳ Ignoring duplicate update for ${currentMinute}`)
       }
     }
+    console.log('get todayy', getToday())
+    console.log('get yesterday', getYesterday())
 
-    onMounted(() => {
+    onMounted(async () => {
       console.log('📡 Connecting WebSocket...')
       stocksService.connectWebSocket(props.stockSymbol, updateChart)
 
-      timeSeries.value = store.fetchStockHistory(props.stockSymbol)
+      //getting stock history
+      const { yesterdayData: yData, todayData: tData } = await store.fetchStockHistory(
+        props.stockSymbol,
+      )
+
+      console.log('yesterday after fetch', yesterdayData)
+      console.log('todya after fetch', todayData)
+      yesterdayData.value = yData
+      todayData.value = tData
+      if (yesterdayData.value.length > 0 && todayData.value.length > 0) {
+        console.log('📊 today history', todayData.value)
+        console.log('📊 yesterday data', yesterdayData.value)
+        //get current time
+        const now = new Date()
+        //define market open and close times
+        const startTime = new Date()
+        startTime.setHours(9, 30, 0, 0) // set start time to 9:00 a.m.
+
+        const endTime = new Date()
+        endTime.setHours(16, 0, 0, 0) // set end time to 4:00 p.m.
+
+        const todayDate = new Date()
+        todayDate.setHours(0, 0, 0, 0) // Ensures no timezone shift
+
+        console.log('now now', now.toDateString())
+        console.log('today now', todayDate.toDateString())
+
+        if (now.toDateString() === todayDate.toDateString() && now >= startTime) {
+          console.log("📅 Market is open today, showing today's data.")
+
+          prices.value = [...todayData.value]
+          lastUpdatedTime.value = todayData.value[0].x // Store last historical timestamp
+          if (now === endTime) {
+            store.closingPrice = todayData.value[0].y
+          }
+        } else {
+          console.log(
+            "📅 Market is not open yet or today is a non-trading day, showing yesterday's data.",
+          )
+          prices.value = [...yesterdayData.value]
+          lastUpdatedTime.value = yesterdayData.value[0].x // Store last historical timestamp
+          store.closingPrice = yesterdayData.value[0].y
+          console.log('last updated price', yesterdayData.value[0].y)
+          console.log('last updated price', store.closingPrice)
+        }
+      }
     })
 
     onUnmounted(() => {
@@ -197,59 +199,71 @@ export default defineComponent({
 
     watch(
       () => props.stockSymbol,
-      () => {
-        console.log(`🔄 Stock changed to: ${props.stockSymbol}, reconnecting WebSocket...`)
+      async (newSymbol, oldSymbol) => {
+        console.log(`🔄 Stock changed from ${oldSymbol} to ${newSymbol}, reconnecting WebSocket...`)
+
+        // ✅ Disconnect old WebSocket before fetching new stock data
         stocksService.disconnectWebSocket()
+
+        // ✅ Fetch new stock history
+        const { yesterdayData, todayData } = await store.fetchStockHistory(newSymbol)
+
+        console.log('yesterday after fetch', yesterdayData)
+        console.log('todya after fetch', todayData)
+        // ✅ Update the chart with new stock data
+        if (todayData.length > 0) {
+          prices.value = [...todayData] // ✅ Use today's data
+          lastUpdatedTime.value = todayData[0].x
+        } else {
+          prices.value = [...yesterdayData] // ✅ Fallback to yesterday's data
+          lastUpdatedTime.value = yesterdayData[0]?.x || null
+        }
+
+        // ✅ Force Vue to recognize `options.value` update
+        console.log('📡 Chart is updating, applying new tick settings...')
+        options.value = { ...options.value } // ✅ Triggers Vue reactivity
+
+        // ✅ Ensure `ticks.callback` is reapplied
+        options.value.scales.x.ticks.callback = function (val, index) {
+          return index % 12 === 0 ? this.getLabelForValue(val) : ''
+        }
+
+        // ✅ Reconnect WebSocket for the new stock
         stocksService.connectWebSocket(props.stockSymbol, updateChart)
       },
     )
 
-    return { chartData, options, timeSeries }
+    // watch(chartData, () => {
+    //   myChart.data.datasets[0].data = chartData.value
+    //   myChart.update()
+    // })
+    // watch(
+    //   () => prices.value, // Watching specific stock data
+    //   (newData) => {
+    //     if (newData) {
+    //       if (store.closingPrice >= newData) {
+    //         console.log(`the price ${newData} is lower than closing ${store.closingPrice}`)
+    //       } else {
+    //         console.log(`the price ${newData} is higher than closing ${store.closingPrice}`)
+    //       }
+    //     }
+    //   },
+    //   { deep: true, immediate: true }, // Ensures it runs on first load and deep watches objects
+    // )
+    // console.log('chartdata', typeof chartData.value.datasets.borderColor)
+
+    return { lineChartProps, lineChartRef, store, formattedArray }
   },
 })
 </script>
 
-<style scoped>
-.q-card-section {
-  height: 400px;
+<style>
+#app {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
+  margin-top: 60px;
 }
 </style>
-
-<!-- trial symbols -->
-<!-- Forex:
-
-EUR/USD (Euro/US Dollar)
-Cryptocurrency:
-
-BTC/USD (Bitcoin/US Dollar)
-United States (US):
-
-AAPL (Apple Inc)
-QQQ (Invesco QQQ Trust)
-ABML (American Battery Technology Company)
-IXIC (NASDAQ Composite Index)
-VFIAX (Vanguard 500 Index Fund)
-Canada (CA):
-
-TRP:TSX (TC Energy Corp)
-SVI:TSXV (StorageVault Canada Inc)
-MEDV:NEO (Medivolve Inc.)
-India (IN):
-
-INFY:NSE (Infosys Limited)
-SUPERSHAKT:BSE (Supershakti Metaliks Limited)
-Netherlands (NL):
-
-ADYEN:Euronext (Adyen N.V.)
-Belgium (BE):
-
-BOTHE:Euronext (Bone Therapeutics SA)
-Portugal (PT):
-
-SLBEN:Euronext (Sport Lisboa e Benfica - Futebol, SAD)
-France (FR):
-
-ALMIL:Euronext (1000mercis)
-Ireland (IE):
-
-DQ7A:ISE (Donegal Investment Group plc) -->

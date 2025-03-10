@@ -110,7 +110,7 @@ export default {
     const uptrend = ref(true)
     console.log(store.fetchStockList().value)
     const filteredStocks = computed(() => {
-      if (!store.stocksList.length) return [] // ✅ Prevents returning undefined
+      if (!store.stocksList.length) return [] // Prevents returning undefined
       return (
         store.stocksList?.filter(
           (stock) =>
@@ -159,10 +159,10 @@ export default {
 
     onMounted(() => {
       if (store.stocksList.length === 0) {
-        store.fetchStockList() // ✅ Shared API call
+        store.fetchStockList() // Shared API call
       }
     })
-    // ✅ Clean up listener when component is destroyed
+    // Clean up listener when component is destroyed
     onUnmounted(() => {
       unregisterAfterEach()
     })
