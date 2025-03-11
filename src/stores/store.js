@@ -1,28 +1,55 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import stocksService from 'src/services/stocks'
 import { useDateUtils } from 'src/composables/useDateUtils'
+import { LocalStorage } from 'quasar'
+import LZString from 'lz-string'
 
 export const useStockStore = defineStore('stockStore', () => {
   const { getToday, getYesterday, isWeekday, getLastTradingDay } = useDateUtils()
-  const stocksList = ref([])
+  const storedStocks = LocalStorage.getItem('stocksList')
+
+  // const stocksList = ref(LocalStorage.getItem('stocksList') || [])
+
   let stockHistoryYesterday = ref([])
   let stockHistoryToday = ref([])
-  const watchList = ref([])
+  const watchList = ref(LocalStorage.getItem('watchList') || [])
   const liveData = ref([])
-  const selectedStock = ref(null)
-  const closingPrice = ref([])
+  const selectedStock = ref(LocalStorage.getItem('selectedStock') || null)
+  const closingPrice = ref(LocalStorage.getItem('closingPrice') || [])
+
+  let parsedStocks = []
+
+  if (storedStocks) {
+    try {
+      const decompressed = LZString.decompress(storedStocks)
+      parsedStocks = decompressed ? JSON.parse(decompressed) : [] // ✅ Ensure valid array
+    } catch (error) {
+      console.error('❌ Error parsing stocks from LocalStorage:', error)
+      parsedStocks = [] // ✅ Fallback to empty array
+    }
+  }
+  const stocksList = ref(parsedStocks) // ✅ Safe initialization
 
   const setSelectedStock = (stock) => {
     selectedStock.value = { ...stock } // Updates store reactively
+    LocalStorage.set('selectedStock', selectedStock.value)
   }
   const fetchStockList = async () => {
-    if (stocksList.value.length > 0) return // Prevent duplicate API calls
+    // debugger
+    if (stocksList.value && stocksList.value.length > 0) {
+      console.log('✅ Using cached stocks from LocalStorage')
+      return // Prevent duplicate API calls
+    }
 
     try {
+      console.log('🔄 Fetching stock data from API...')
       const response = await stocksService.getStocksList()
       stocksList.value = response.data?.data ?? []
-      console.log('stocks list', stocksList.value)
+      console.log('fetched stocks list', stocksList.value)
+
+      // ✅ Compress and store in LocalStorage
+      LocalStorage.set('stocksList', LZString.compress(JSON.stringify(stocksList.value)))
       return response.data
     } catch (error) {
       console.error('Error fetching stocks', error)
@@ -97,14 +124,14 @@ export const useStockStore = defineStore('stockStore', () => {
   // }
 
   const fetchStockHistory = async (symbol) => {
+    // debugger
     try {
       const response = await stocksService.getStockHistory(symbol)
       if (response) {
-        console.log('📊 Raw history data:', response.data)
         console.log('res is', response)
 
         const now = new Date()
-        let day = now.getDay()
+        // let day = now.getDay()
 
         const dayBefore = new Date()
         dayBefore.setDate(now.getDate() - 1) // ✅ Get previous day as Date object
@@ -131,15 +158,15 @@ export const useStockStore = defineStore('stockStore', () => {
         console.log('➡️ Yesterday:', yesterday)
         console.log('➡️ Today:', today)
         let yesterdayData, todayData
-        if (day === 1) {
-          // ✅ Filter history data for the correct dates
-          yesterdayData = response?.filter((data) => data.datetime?.startsWith(yesterday))
-          todayData = response?.filter((data) => data.datetime?.startsWith(today))
-        } else {
-          // ✅ Filter history data for the correct dates
-          yesterdayData = response.data?.filter((data) => data.datetime?.startsWith(yesterday))
-          todayData = response.data?.filter((data) => data.datetime?.startsWith(today))
-        }
+        // if (day === 1) {
+        // ✅ Filter history data for the correct dates
+        yesterdayData = response?.filter((data) => data.datetime?.startsWith(yesterday))
+        todayData = response?.filter((data) => data.datetime?.startsWith(today))
+        // } else {
+        //   // ✅ Filter history data for the correct dates
+        //   yesterdayData = response.data?.filter((data) => data.datetime?.startsWith(yesterday))
+        //   todayData = response.data?.filter((data) => data.datetime?.startsWith(today))
+        // }
 
         console.log("📊 Filtered Yesterday's Data:", yesterdayData)
         console.log("📊 Filtered Today's Data:", todayData)
@@ -197,6 +224,8 @@ export const useStockStore = defineStore('stockStore', () => {
     )
     if (!exists) {
       watchList.value.push(stock)
+      LocalStorage.set('watchList', watchList.value) // ✅ Persist watchlist
+
       console.log('WatchList Updated:', watchList.value)
     }
   }
@@ -213,6 +242,7 @@ export const useStockStore = defineStore('stockStore', () => {
       )
       watchList.value = [...updatedWatchlist]
       console.log(`Removed ${stock.exchange}-${stock.symbol} from watchlist`)
+      LocalStorage.set('watchList', watchList.value) // ✅ Persist watchlist
     } else {
       console.log(`⚠️ Stock ${stock.exchange}-${stock.symbol} not found in watchlist`)
     }
@@ -232,6 +262,40 @@ export const useStockStore = defineStore('stockStore', () => {
   const latestStockPrice = computed(() => {
     return liveData.value.length > 0 ? liveData.value[liveData.value.length - 1].price : ''
   })
+
+  // 🌟 WATCHERS: Automatically Sync State with Quasar LocalStorage
+
+  watch(
+    stocksList,
+    (newValue) => {
+      LocalStorage.set('stocksList', LZString.compress(JSON.stringify(newValue)))
+    },
+    { deep: true },
+  )
+
+  watch(
+    watchList,
+    (newValue) => {
+      LocalStorage.set('watchList', newValue)
+    },
+    { deep: true },
+  )
+
+  watch(
+    selectedStock,
+    (newValue) => {
+      LocalStorage.set('selectedStock', newValue)
+    },
+    { deep: true },
+  )
+
+  watch(
+    closingPrice,
+    (newValue) => {
+      LocalStorage.set('closingPrice', newValue)
+    },
+    { deep: true },
+  )
   return {
     stocksList,
     stockHistoryYesterday,

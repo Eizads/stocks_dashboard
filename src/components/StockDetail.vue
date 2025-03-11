@@ -2,7 +2,7 @@
   <div class="containr">
     <div class="row justify-center items-center">
       <div class="col-12 q-px-xl">
-        <!-- <h1 class="text-h4">{{ store.selectedStock.name }}</h1>
+        <h1 class="text-h4">{{ store.selectedStock.name }}</h1>
         <h2 class="text-h5">
           {{ store.selectedStock.exchange }}: {{ store.selectedStock.symbol }}
         </h2>
@@ -16,7 +16,7 @@
             {{ Math.round(store.closingPrice * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
           </h3>
-        </div> -->
+        </div>
         <StockChart :stockExchange="route.params.exchange" :stockSymbol="route.params.symbol" />
       </div>
     </div>
