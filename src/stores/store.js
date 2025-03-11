@@ -9,8 +9,6 @@ export const useStockStore = defineStore('stockStore', () => {
   const { getToday, getYesterday, isWeekday, getLastTradingDay } = useDateUtils()
   const storedStocks = LocalStorage.getItem('stocksList')
 
-  // const stocksList = ref(LocalStorage.getItem('stocksList') || [])
-
   let stockHistoryYesterday = ref([])
   let stockHistoryToday = ref([])
   const watchList = ref(LocalStorage.getItem('watchList') || [])
@@ -36,7 +34,6 @@ export const useStockStore = defineStore('stockStore', () => {
     LocalStorage.set('selectedStock', selectedStock.value)
   }
   const fetchStockList = async () => {
-    // debugger
     if (stocksList.value && stocksList.value.length > 0) {
       console.log('✅ Using cached stocks from LocalStorage')
       return // Prevent duplicate API calls
@@ -56,75 +53,8 @@ export const useStockStore = defineStore('stockStore', () => {
       stocksList.value = []
     }
   }
-  // const fetchStockHistory = async (symbol) => {
-  //   try {
-  //     const response = await stocksService.getStockHistory(symbol)
-  //     if (response.data) {
-  //       console.log('history data', response.data)
-  //       const now = new Date()
-  //       let yesterday, today
-
-  //       if (isWeekday(now) && isWeekday(dayBefore)) {
-  //         // If today is a weekday, use yesterday and today
-  //         yesterday = getYesterday()
-  //         today = getToday()
-  //       } else if (isWeekday(now) && !isWeekday(dayBefore)) {
-  //         yesterday = getLastTradingDay()
-  //         today = getToday()
-  //       } else {
-  //         // If today is a weekend, get last Friday
-  //         yesterday = getLastTradingDay() // Friday
-  //         today = getLastTradingDay() // Use the same Friday data
-  //       }
-
-  //       console.log('📅 Fetching data for:')
-  //       console.log('➡️ Yesterday:', yesterday)
-  //       console.log('➡️ Today:', today)
-
-  //       const yesterdayData = response.data?.values.filter((data) =>
-  //         data.datetime?.startsWith(yesterday),
-  //       )
-  //       const todayData = response.data?.values.filter((data) => data.datetime?.startsWith(today))
-  //       console.log()
-  //       console.log("📊 Yesterday's Data:", yesterdayData)
-  //       console.log("📊 Today's Data:", todayData)
-  //       // const todayData = historyData.filter((data) => data.datetime?.startsWith(today))
-  //       stockHistoryYesterday.value = yesterdayData?.map((data) => {
-  //         const dateObj = new Date(data.datetime.replace(' ', 'T'))
-  //         return {
-  //           x: dateObj.toLocaleTimeString('en-US', {
-  //             hour: 'numeric',
-  //             minute: '2-digit',
-  //             hour12: true,
-  //           }), // format the date to '3:55 PM'
-  //           y: parseFloat(data.close), // Convert price to float
-  //         }
-  //       })
-  //       stockHistoryToday.value = todayData?.map((data) => {
-  //         const dateObj = new Date(data.datetime.replace(' ', 'T'))
-  //         return {
-  //           x: dateObj.toLocaleTimeString('en-US', {
-  //             hour: 'numeric',
-  //             minute: '2-digit',
-  //             hour12: true,
-  //           }), // format the date to '3:55 PM'
-  //           y: parseFloat(data.close), // Convert price to float
-  //         }
-  //       })
-  //       console.log('stock history', stockHistoryYesterday.value)
-  //       return {
-  //         todayData: stockHistoryToday.value,
-  //         yesterdayData: stockHistoryYesterday.value,
-  //       }
-  //     }
-  //   } catch (error) {
-  //     console.error('Error fetching price history', error)
-  //     return { todayData: [], yesterdayData: [] }
-  //   }
-  // }
 
   const fetchStockHistory = async (symbol) => {
-    // debugger
     try {
       const response = await stocksService.getStockHistory(symbol)
       if (response) {

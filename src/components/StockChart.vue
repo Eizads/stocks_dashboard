@@ -1,8 +1,6 @@
 <template>
   <div id="app" style="width: 100%; min-height: 500px">
-    <!-- <p>📅 Yesterday's Data: {{ yesterdayData.length > 0 ? yesterdayData : 'No data' }}</p>
-    <p>📅 Today's Data: {{ todayData.length > 0 ? todayData : 'No data' }}</p> -->
-    <LineChart ref="myChart" v-bind="lineChartProps" />
+    <LineChart ref="LineRef" v-bind="lineChartProps" @chart:update="handleChartUpdate" />
   </div>
 </template>
 
@@ -13,6 +11,7 @@ import { ref, computed, defineComponent, watch, onMounted, onUnmounted } from 'v
 import stocksService from 'src/services/stocks.js'
 import { useStockStore } from 'src/stores/store'
 import { useDateUtils } from 'src/composables/useDateUtils'
+import { LocalStorage } from 'quasar'
 
 Chart.register(...registerables)
 
@@ -70,8 +69,7 @@ export default defineComponent({
         {
           data: prices.value,
           backgroundColor: ['#4caf50'],
-          borderColor: ['#4caf50'],
-
+          borderColor: [],
           pointRadius: 0,
         },
       ],
@@ -140,6 +138,20 @@ export default defineComponent({
     console.log('get todayy', getToday())
     console.log('get yesterday', getYesterday())
 
+    const handleChartUpdate = (chart) => {
+      console.log('chart updating', chart)
+      // options.value.scales.x.ticks.callback = function (val, index) {
+      //   return index % 12 === 0 ? this.getLabelForValue(val) : ''
+      // }
+      console.log('now price xx', prices.value[0].y)
+      console.log('closing price xx', store.closingPrice)
+      if (!chart) return
+
+      chart.data.datasets[0].borderColor =
+        prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
+      chart.update() // ✅ Apply the change
+    }
+
     onMounted(async () => {
       console.log('📡 Connecting WebSocket...')
       stocksService.connectWebSocket(props.stockSymbol, updateChart)
@@ -178,6 +190,11 @@ export default defineComponent({
           lastUpdatedTime.value = todayData.value[0].x // Store last historical timestamp
           if (now === endTime) {
             store.closingPrice = todayData.value[0].y
+            LocalStorage.set('closingPrice', store.closingPrice)
+          } else {
+            store.closingPrice = yesterdayData.value[0].y
+            LocalStorage.set('closingPrice', store.closingPrice)
+            console.log('closing price from yesterday', store.closingPrice)
           }
         } else {
           console.log(
@@ -186,6 +203,8 @@ export default defineComponent({
           prices.value = [...yesterdayData.value]
           lastUpdatedTime.value = yesterdayData.value[0].x // Store last historical timestamp
           store.closingPrice = yesterdayData.value[0].y
+          LocalStorage.set('closingPrice', store.closingPrice)
+
           console.log('last updated price', yesterdayData.value[0].y)
           console.log('last updated price', store.closingPrice)
         }
@@ -224,9 +243,9 @@ export default defineComponent({
         options.value = { ...options.value } // ✅ Triggers Vue reactivity
 
         // ✅ Ensure `ticks.callback` is reapplied
-        options.value.scales.x.ticks.callback = function (val, index) {
-          return index % 12 === 0 ? this.getLabelForValue(val) : ''
-        }
+        // options.value.scales.x.ticks.callback = function (val, index) {
+        //   return index % 12 === 0 ? this.getLabelForValue(val) : ''
+        // }
 
         // ✅ Reconnect WebSocket for the new stock
         stocksService.connectWebSocket(props.stockSymbol, updateChart)
@@ -252,7 +271,13 @@ export default defineComponent({
     // )
     // console.log('chartdata', typeof chartData.value.datasets.borderColor)
 
-    return { lineChartProps, lineChartRef, store, formattedArray }
+    return {
+      lineChartProps,
+      lineChartRef,
+      store,
+      formattedArray,
+      handleChartUpdate,
+    }
   },
 })
 </script>
