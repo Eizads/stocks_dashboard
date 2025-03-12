@@ -182,7 +182,7 @@ export const useStockStore = defineStore('stockStore', () => {
   const addLiveData = (newData) => {
     if (!liveData.value.some((p) => p.price === newData.price)) {
       liveData.value = [...liveData.value, newData]
-      // console.log('live ----------', liveData.value)
+      console.log('live ----------', liveData.value)
     }
     if (liveData.value.length > 100) {
       // Keep only the last 100 entries

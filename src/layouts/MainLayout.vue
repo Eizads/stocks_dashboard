@@ -1,14 +1,17 @@
 <template>
   <q-layout view="lHh Lpr lFf">
     <q-header>
-      <q-toolbar class="flex flex-column text-white bg-dark" style="height: 88px">
+      <q-toolbar
+        class="flex flex-column text-white"
+        style="height: 88px; background-color: #02141f"
+      >
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
         <!-- <q-item to="/" clickable flat>
           <q-toolbar-title> Stocks Dashboard </q-toolbar-title>
         </q-item> -->
         <q-btn flat label="Stocks Dashboard" :to="'/'" />
         <q-space />
-        <q-btn flat round dense icon="search" class="q-mr-xs" @click="openSearchModal = true" />
+        <q-btn flat round icon="search" class="q-mr-xs q-pa-md" @click="openSearchModal = true" />
       </q-toolbar>
     </q-header>
 

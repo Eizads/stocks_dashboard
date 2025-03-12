@@ -1,6 +1,6 @@
 <template>
   <div id="app" style="width: 100%; min-height: 500px">
-    <LineChart ref="LineRef" v-bind="lineChartProps" @chart:update="handleChartUpdate" />
+    <LineChart ref="lineRef" v-bind="lineChartProps" @chart:update="handleChartUpdate" />
   </div>
 </template>
 
@@ -30,7 +30,7 @@ export default defineComponent({
     const { getToday, getYesterday } = useDateUtils()
     const lastUpdatedTime = ref(null)
     const formattedArray = ref([])
-
+    const borderColor = ref(['#21ba45'])
     const yesterdayData = ref([]) // Stores yesterday's data
     const todayData = ref([])
 
@@ -62,14 +62,15 @@ export default defineComponent({
     const timestamps = ref(generateTimeLabels())
 
     // chart setup
+
     const chartData = computed(() => ({
       labels: timestamps.value,
 
       datasets: [
         {
           data: prices.value,
-          backgroundColor: ['#4caf50'],
-          borderColor: [],
+          backgroundColor: borderColor.value,
+          borderColor: borderColor.value,
           pointRadius: 0,
         },
       ],
@@ -93,8 +94,14 @@ export default defineComponent({
             display: false, // Remove X-axis grid lines
           },
           ticks: {
-            callback: function (val, index) {
-              return index % 12 === 0 ? this.getLabelForValue(val) : ''
+            callback: function (val) {
+              // return index % 12 === 0 ? this.getLabelForValue(val) : ''
+              const label = this.getLabelForValue(val)
+              const date = new Date(label) // Convert timestamp to Date object
+
+              if (date.getMinutes() === 0) {
+                return date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }) // Format as "1 AM", "2 AM", etc.
+              }
             },
           },
         },
@@ -147,10 +154,34 @@ export default defineComponent({
       console.log('closing price xx', store.closingPrice)
       if (!chart) return
 
-      chart.data.datasets[0].borderColor =
-        prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
+      borderColor.value = prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
+      borderColor.value = prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
+
+      chart.options.scales.x.ticks.callback = function (val, index) {
+        return index % 12 === 0 ? this.getLabelForValue(val) : ''
+      }
+
       chart.update() // ✅ Apply the change
     }
+    // const handleChartRender = (chart) => {
+    //   if (!chart) return
+    //   console.log('chart rendering', chart)
+    //   // ✅ Ensure todayData is available before accessing .value
+    //   if (!todayData.value || todayData.value.length === 0) {
+    //     chart.data.datasets[0].borderColor = '#21ba45'
+
+    //     console.warn('⚠️ todayData is empty or not loaded yet!')
+    //     return
+    //   }
+    //   console.log('closing price xx', store.closingPrice)
+
+    //   console.log('now price xx', todayData.value)
+    //   chart.data.datasets[0].borderColor =
+    //     todayData.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
+    //   chart.data.datasets[0].backgroundColor =
+    //     todayData.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
+    //   chart.update() // ✅ Apply the change
+    // }
 
     onMounted(async () => {
       console.log('📡 Connecting WebSocket...')
@@ -196,6 +227,10 @@ export default defineComponent({
             LocalStorage.set('closingPrice', store.closingPrice)
             console.log('closing price from yesterday', store.closingPrice)
           }
+          // lineRef.value.chart.data.datasets[0].borderColor =
+          //   prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
+          // lineRef.value.chart.update()
+          // handleChartRender()
         } else {
           console.log(
             "📅 Market is not open yet or today is a non-trading day, showing yesterday's data.",
@@ -207,6 +242,10 @@ export default defineComponent({
 
           console.log('last updated price', yesterdayData.value[0].y)
           console.log('last updated price', store.closingPrice)
+          // lineRef.value.chart.data.datasets[0].borderColor =
+          //   prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
+          // lineRef.value.chart.update()
+          // handleChartRender()
         }
       }
     })
@@ -277,6 +316,7 @@ export default defineComponent({
       store,
       formattedArray,
       handleChartUpdate,
+      // handleChartRender,
     }
   },
 })
