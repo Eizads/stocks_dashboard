@@ -132,7 +132,6 @@ export default {
       timeZoneName: 'short', // "EDT" (Eastern Daylight Time)
     })
     const comparePrice = computed(() => {
-      console.log('closing price ***', store.closingPrice)
       if (latestStockPrice.value) {
         return latestStockPrice.value - store.closingPrice
       } else {
@@ -143,10 +142,8 @@ export default {
     })
     const percentChange = computed(() => {
       if (latestStockPrice.value) {
-        console.log('closing price ***', store.closingPrice)
         return ((latestStockPrice.value - store.closingPrice) / store.closingPrice) * 100
       } else {
-        console.log('closing price ***', store.closingPrice)
         if (store?.stockHistoryToday) {
           return ((store.stockHistoryToday[0].y - store.closingPrice) / store.closingPrice) * 100
         } else return ''

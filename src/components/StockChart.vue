@@ -11,7 +11,6 @@ import { ref, computed, defineComponent, watch, onMounted, onUnmounted } from 'v
 import stocksService from 'src/services/stocks.js'
 import { useStockStore } from 'src/stores/store'
 import { useDateUtils } from 'src/composables/useDateUtils'
-import { LocalStorage } from 'quasar'
 
 Chart.register(...registerables)
 
@@ -163,25 +162,6 @@ export default defineComponent({
 
       chart.update() // ✅ Apply the change
     }
-    // const handleChartRender = (chart) => {
-    //   if (!chart) return
-    //   console.log('chart rendering', chart)
-    //   // ✅ Ensure todayData is available before accessing .value
-    //   if (!todayData.value || todayData.value.length === 0) {
-    //     chart.data.datasets[0].borderColor = '#21ba45'
-
-    //     console.warn('⚠️ todayData is empty or not loaded yet!')
-    //     return
-    //   }
-    //   console.log('closing price xx', store.closingPrice)
-
-    //   console.log('now price xx', todayData.value)
-    //   chart.data.datasets[0].borderColor =
-    //     todayData.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
-    //   chart.data.datasets[0].backgroundColor =
-    //     todayData.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
-    //   chart.update() // ✅ Apply the change
-    // }
 
     onMounted(async () => {
       console.log('📡 Connecting WebSocket...')
@@ -220,14 +200,16 @@ export default defineComponent({
 
           prices.value = [...todayData.value]
           lastUpdatedTime.value = todayData.value[0].x // Store last historical timestamp
-          if (now.getTime() >= endTime.getTime()) {
+          if (now.getTime() > endTime.getTime()) {
+            console.log('now greater')
             store.closingPrice = todayData.value[0].y
             store.setClosingPrice(todayData.value[0]?.y) // ✅ Update closing price
+            console.log('closing price from today mounted', store.closingPrice)
           } else {
+            console.log('now smaller')
             store.closingPrice = yesterdayData.value[0].y
             store.setClosingPrice(yesterdayData.value[0]?.y) // ✅ Update closing price
-
-            console.log('closing price from yesterday', store.closingPrice)
+            console.log('closing price from yesterday mounted', store.closingPrice)
           }
           // lineRef.value.chart.data.datasets[0].borderColor =
           //   prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
@@ -240,7 +222,8 @@ export default defineComponent({
           prices.value = [...yesterdayData.value]
           lastUpdatedTime.value = yesterdayData.value[0].x // Store last historical timestamp
           store.closingPrice = yesterdayData.value[0].y
-          LocalStorage.set('closingPrice', store.closingPrice)
+          store.setClosingPrice(yesterdayData.value[0]?.y) // ✅ Update closing price
+          console.log('closing price from yesterday mounted', store.closingPrice)
 
           console.log('last updated price', yesterdayData.value[0].y)
           console.log('last updated price', store.closingPrice)
@@ -281,15 +264,22 @@ export default defineComponent({
           prices.value = [...todayData] // ✅ Use today's data
           lastUpdatedTime.value = todayData[0].x
 
-          if (now.getTime() >= endTime.getTime()) {
-            store.setClosingPrice(todayData[todayData.length - 1]?.y) // ✅ Update closing price
+          if (now.getTime() > endTime.getTime()) {
+            console.log('now greater')
+
+            store.setClosingPrice(todayData[0]?.y) // ✅ Update closing price
+            console.log('closing price from today watch', store.closingPrice)
           } else {
-            store.setClosingPrice(yesterdayData[yesterdayData.length - 1]?.y) // ✅ Use last available price
+            console.log('now smaller')
+
+            store.setClosingPrice(yesterdayData[0]?.y) // ✅ Use last available price
+            console.log('closing price from yesterday watch', store.closingPrice)
           }
         } else {
           prices.value = [...yesterdayData] // ✅ Fallback to yesterday's data
           lastUpdatedTime.value = yesterdayData[0]?.x || null
-          store.setClosingPrice(yesterdayData[yesterdayData.length - 1]?.y) // ✅ Use last available price
+          store.setClosingPrice(yesterdayData[0]?.y) // ✅ Use last available price
+          console.log('closing price from yesterday watch', store.closingPrice)
         }
 
         console.log('Updated closing price:', store.closingPrice)
