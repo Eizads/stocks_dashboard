@@ -158,7 +158,15 @@ export default {
         store.addToWatchList(store.selectedStock)
       }
     }
-    const afterHours = () => {}
+    const afterHours = computed(() => {
+      const now = new Date()
+      const startTime = new Date()
+      startTime.setHours(9, 30, 0, 0)
+      const endTime = new Date()
+      endTime.setHours(16, 0, 0, 0)
+
+      return now.getTime() > endTime.getTime() ? true : false
+    })
 
     return {
       route,

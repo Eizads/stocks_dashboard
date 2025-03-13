@@ -22,7 +22,7 @@
           <q-icon color="primary" name="bi-plus" size="1.5rem" @click="openWatchlistModal = true" />
         </q-item-section>
       </q-item>
-      <hr />
+      <q-separator />
       <q-list v-if="store.watchList.length > 0">
         <Stock4Watchlist :stockList="store.watchList" />
       </q-list>
