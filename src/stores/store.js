@@ -179,12 +179,15 @@ export const useStockStore = defineStore('stockStore', () => {
 
     console.log('📋 Updated Watchlist:', watchList.value)
   }
+  const isInWatchList = (stock) => {
+    return watchList.value.some((s) => s.exchange === stock.exchange && s.symbol === stock.symbol)
+  }
   const addLiveData = (newData) => {
     if (!liveData.value.some((p) => p.price === newData.price)) {
       liveData.value = [...liveData.value, newData]
       console.log('live ----------', liveData.value)
     }
-    if (liveData.value.length > 100) {
+    if (liveData.value.length > 10) {
       // Keep only the last 100 entries
       liveData.value.shift()
     }
@@ -192,6 +195,28 @@ export const useStockStore = defineStore('stockStore', () => {
   const latestStockPrice = computed(() => {
     return liveData.value.length > 0 ? liveData.value[liveData.value.length - 1].price : ''
   })
+  const latestStockTime = computed(() => {
+    let time, formattedTime
+    if (liveData.value.length > 0) {
+      time = liveData.value[liveData.value.length - 1].timestamp * 1000
+      formattedTime = new Date(time).toLocaleString('en-US', {
+        month: 'short', // "Mar"
+        day: 'numeric', // "12"
+        hour: 'numeric', // "10"
+        minute: '2-digit', // "42"
+        hour12: true, // "a.m." or "p.m."
+        timeZoneName: 'short', // "EDT"
+      })
+    }
+    console.log('store formatted time from live', formattedTime)
+
+    return formattedTime
+  })
+
+  const setClosingPrice = (price) => {
+    closingPrice.value = price
+    LocalStorage.set('closingPrice', price)
+  }
 
   // 🌟 WATCHERS: Automatically Sync State with Quasar LocalStorage
 
@@ -236,11 +261,14 @@ export const useStockStore = defineStore('stockStore', () => {
     fetchStockHistory,
     addToWatchList,
     removeFromWatchList,
+    isInWatchList,
     liveData,
     addLiveData,
     latestStockPrice,
     selectedStock,
     setSelectedStock,
     closingPrice,
+    latestStockTime,
+    setClosingPrice,
   }
 })

@@ -22,25 +22,9 @@
           <q-icon color="primary" name="bi-plus" size="1.5rem" @click="openWatchlistModal = true" />
         </q-item-section>
       </q-item>
+      <hr />
       <q-list v-if="store.watchList.length > 0">
-        <q-item
-          :to="`/${stock.exchange}-${stock.symbol}`"
-          v-for="stock in store.watchList"
-          :key="stock.symbol"
-          @click="store.setSelectedStock(stock)"
-        >
-          <q-item-section>{{ stock.symbol }} - {{ stock.exchange }}</q-item-section>
-          <q-item-section avatar>
-            <q-icon
-              :name="isInWatchList(stock) ? 'bi-dash-circle' : 'bi-plus-circle'"
-              size="32px"
-              :class="isInWatchList(stock) ? 'text-red' : 'text-blue'"
-              class="relative"
-              @click.stop.prevent="isInWatchList(stock) ? removeStock(stock) : addStock(stock)"
-            >
-            </q-icon>
-          </q-item-section>
-        </q-item>
+        <Stock4Watchlist :stockList="store.watchList" />
       </q-list>
     </q-drawer>
     <q-dialog v-model="openSearchModal" position="top" maximized>
@@ -59,8 +43,9 @@
 <script>
 import { defineComponent, ref } from 'vue'
 import SearchComponent from 'src/components/SearchComponent.vue'
-import WatchlistComponent from 'src/components/watchlistComponent.vue'
+import WatchlistComponent from 'src/components/WatchlistComponent.vue'
 import { useStockStore } from 'stores/store'
+import Stock4Watchlist from 'src/components/Stock4Watchlist.vue'
 
 export default defineComponent({
   name: 'MainLayout',
@@ -68,6 +53,7 @@ export default defineComponent({
   components: {
     SearchComponent,
     WatchlistComponent,
+    Stock4Watchlist,
   },
 
   setup() {

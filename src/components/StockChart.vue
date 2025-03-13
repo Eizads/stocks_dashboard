@@ -1,5 +1,5 @@
 <template>
-  <div id="app" style="width: 100%; min-height: 500px">
+  <div id="myChart" style="width: 100%; min-height: 500px; margin-top: 0.5rem">
     <LineChart ref="lineRef" v-bind="lineChartProps" @chart:update="handleChartUpdate" />
   </div>
 </template>
@@ -16,7 +16,7 @@ import { LocalStorage } from 'quasar'
 Chart.register(...registerables)
 
 export default defineComponent({
-  name: 'App',
+  name: 'StockChart',
   components: {
     LineChart,
   },
@@ -210,7 +210,8 @@ export default defineComponent({
 
         const todayDate = new Date()
         todayDate.setHours(0, 0, 0, 0) // Ensures no timezone shift
-
+        console.log('now---------------', now.getTime())
+        console.log('endTime---------------', endTime.getTime())
         console.log('now now', now.toDateString())
         console.log('today now', todayDate.toDateString())
 
@@ -219,12 +220,13 @@ export default defineComponent({
 
           prices.value = [...todayData.value]
           lastUpdatedTime.value = todayData.value[0].x // Store last historical timestamp
-          if (now === endTime) {
+          if (now.getTime() >= endTime.getTime()) {
             store.closingPrice = todayData.value[0].y
-            LocalStorage.set('closingPrice', store.closingPrice)
+            store.setClosingPrice(todayData.value[0]?.y) // ✅ Update closing price
           } else {
             store.closingPrice = yesterdayData.value[0].y
-            LocalStorage.set('closingPrice', store.closingPrice)
+            store.setClosingPrice(yesterdayData.value[0]?.y) // ✅ Update closing price
+
             console.log('closing price from yesterday', store.closingPrice)
           }
           // lineRef.value.chart.data.datasets[0].borderColor =
@@ -269,13 +271,28 @@ export default defineComponent({
         console.log('yesterday after fetch', yesterdayData)
         console.log('todya after fetch', todayData)
         // ✅ Update the chart with new stock data
+        const now = new Date()
+        const startTime = new Date()
+        startTime.setHours(9, 30, 0, 0)
+        const endTime = new Date()
+        endTime.setHours(16, 0, 0, 0)
+
         if (todayData.length > 0) {
           prices.value = [...todayData] // ✅ Use today's data
           lastUpdatedTime.value = todayData[0].x
+
+          if (now.getTime() >= endTime.getTime()) {
+            store.setClosingPrice(todayData[todayData.length - 1]?.y) // ✅ Update closing price
+          } else {
+            store.setClosingPrice(yesterdayData[yesterdayData.length - 1]?.y) // ✅ Use last available price
+          }
         } else {
           prices.value = [...yesterdayData] // ✅ Fallback to yesterday's data
           lastUpdatedTime.value = yesterdayData[0]?.x || null
+          store.setClosingPrice(yesterdayData[yesterdayData.length - 1]?.y) // ✅ Use last available price
         }
+
+        console.log('Updated closing price:', store.closingPrice)
 
         // ✅ Force Vue to recognize `options.value` update
         console.log('📡 Chart is updating, applying new tick settings...')
@@ -291,25 +308,6 @@ export default defineComponent({
       },
     )
 
-    // watch(chartData, () => {
-    //   myChart.data.datasets[0].data = chartData.value
-    //   myChart.update()
-    // })
-    // watch(
-    //   () => prices.value, // Watching specific stock data
-    //   (newData) => {
-    //     if (newData) {
-    //       if (store.closingPrice >= newData) {
-    //         console.log(`the price ${newData} is lower than closing ${store.closingPrice}`)
-    //       } else {
-    //         console.log(`the price ${newData} is higher than closing ${store.closingPrice}`)
-    //       }
-    //     }
-    //   },
-    //   { deep: true, immediate: true }, // Ensures it runs on first load and deep watches objects
-    // )
-    // console.log('chartdata', typeof chartData.value.datasets.borderColor)
-
     return {
       lineChartProps,
       lineChartRef,
@@ -323,12 +321,15 @@ export default defineComponent({
 </script>
 
 <style>
-#app {
+#myChart {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
   color: #2c3e50;
   margin-top: 60px;
+}
+#line-chart {
+  min-height: 500px !important;
 }
 </style>
