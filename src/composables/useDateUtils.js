@@ -27,5 +27,47 @@ export function useDateUtils() {
     return today.toISOString().split('T')[0]
   }
 
-  return { getToday, getYesterday, isWeekday, getLastTradingDay }
+  const marketOpen = () => {
+    const now = new Date()
+    const startTime = new Date()
+    startTime.setHours(9, 30, 0, 0) // Market opens at 9:30 AM
+
+    const endTime = new Date()
+    endTime.setHours(16, 0, 0, 0) // Market closes at 4:00 PM
+
+    // Check if current time is within market open hours
+    return now.getTime() >= startTime.getTime() && now.getTime() <= endTime.getTime()
+  }
+  const beforeMarket = () => {
+    const now = new Date()
+    const startTime = new Date()
+    startTime.setHours(9, 30, 0, 0) // Market opens at 9:30 AM
+
+    const endTime = new Date()
+    endTime.setHours(16, 0, 0, 0) // Market closes at 4:00 PM
+
+    // Check if current time is before market open
+    return now.getTime() >= startTime.getTime()
+  }
+  const afterMarket = () => {
+    const now = new Date()
+    const startTime = new Date()
+    startTime.setHours(9, 30, 0, 0) // Market opens at 9:30 AM
+
+    const endTime = new Date()
+    endTime.setHours(16, 0, 0, 0) // Market closes at 4:00 PM
+
+    // Check if current time is before market open
+    return now.getTime() <= endTime.getTime()
+  }
+
+  return {
+    getToday,
+    getYesterday,
+    isWeekday,
+    getLastTradingDay,
+    marketOpen,
+    beforeMarket,
+    afterMarket,
+  }
 }

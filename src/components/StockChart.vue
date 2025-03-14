@@ -1,5 +1,5 @@
 <template>
-  <div id="myChart" style="width: 100%; min-height: 500px; margin-top: 0.5rem">
+  <div id="myChart" style="width: 100%; min-height: 500px; margin-top: 1rem">
     <LineChart ref="lineRef" v-bind="lineChartProps" @chart:update="handleChartUpdate" />
   </div>
 </template>
@@ -77,6 +77,7 @@ export default defineComponent({
 
     const options = ref({
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           display: false,
@@ -89,19 +90,28 @@ export default defineComponent({
 
       scales: {
         x: {
+          ticks: {
+            autoSkip: false,
+
+            callback: function (value) {
+              // return index % 12 === 0 ? this.getLabelForValue(val) : ''
+
+              const chart = this.chart // This will reference the Chart.js instance
+              console.log('callback chart', chart)
+              const xAxis = chart.scales['x'] // Get the x-axis scale
+              const label = xAxis.getLabelForValue(value) // Get the label for the current tick value
+
+              // Example of logging the x-axis value and its corresponding label
+              console.log('Tick Value:', value)
+              console.log('Tick Label:', label)
+
+              // If the value corresponds to a full hour, return it formatted, else return an empty string
+              return value % 60 === 0 ? label : ''
+            },
+          },
+
           grid: {
             display: false, // Remove X-axis grid lines
-          },
-          ticks: {
-            callback: function (val) {
-              // return index % 12 === 0 ? this.getLabelForValue(val) : ''
-              const label = this.getLabelForValue(val)
-              const date = new Date(label) // Convert timestamp to Date object
-
-              if (date.getMinutes() === 0) {
-                return date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }) // Format as "1 AM", "2 AM", etc.
-              }
-            },
           },
         },
         y: {
@@ -146,9 +156,7 @@ export default defineComponent({
 
     const handleChartUpdate = (chart) => {
       console.log('chart updating', chart)
-      // options.value.scales.x.ticks.callback = function (val, index) {
-      //   return index % 12 === 0 ? this.getLabelForValue(val) : ''
-      // }
+
       console.log('now price xx', prices.value[0].y)
       console.log('closing price xx', store.closingPrice)
       if (!chart) return
@@ -156,8 +164,19 @@ export default defineComponent({
       borderColor.value = prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
       borderColor.value = prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
 
-      chart.options.scales.x.ticks.callback = function (val, index) {
-        return index % 12 === 0 ? this.getLabelForValue(val) : ''
+      chart.options.scales.x.ticks.callback = function (value) {
+        // return index % 12 === 0 ? this.getLabelForValue(val) : ''
+
+        console.log('callback chart', chart)
+        const xAxis = chart.scales['x'] // Get the x-axis scale
+        const label = xAxis.getLabelForValue(value) // Get the label for the current tick value
+
+        // Example of logging the x-axis value and its corresponding label
+        console.log('Tick Value:', value)
+        console.log('Tick Label:', label)
+
+        // If the value corresponds to a full hour, return it formatted, else return an empty string
+        return value % 60 === 0 ? label : ''
       }
 
       chart.update() // ✅ Apply the change
@@ -211,10 +230,6 @@ export default defineComponent({
             store.setClosingPrice(yesterdayData.value[0]?.y) // ✅ Update closing price
             console.log('closing price from yesterday mounted', store.closingPrice)
           }
-          // lineRef.value.chart.data.datasets[0].borderColor =
-          //   prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
-          // lineRef.value.chart.update()
-          // handleChartRender()
         } else {
           console.log(
             "📅 Market is not open yet or today is a non-trading day, showing yesterday's data.",
@@ -227,10 +242,6 @@ export default defineComponent({
 
           console.log('last updated price', yesterdayData.value[0].y)
           console.log('last updated price', store.closingPrice)
-          // lineRef.value.chart.data.datasets[0].borderColor =
-          //   prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
-          // lineRef.value.chart.update()
-          // handleChartRender()
         }
       }
     })
@@ -289,9 +300,9 @@ export default defineComponent({
         options.value = { ...options.value } // ✅ Triggers Vue reactivity
 
         // ✅ Ensure `ticks.callback` is reapplied
-        // options.value.scales.x.ticks.callback = function (val, index) {
-        //   return index % 12 === 0 ? this.getLabelForValue(val) : ''
-        // }
+        options.value.scales.x.ticks.callback = function (val, index) {
+          return index % 12 === 0 ? this.getLabelForValue(val) : ''
+        }
 
         // ✅ Reconnect WebSocket for the new stock
         stocksService.connectWebSocket(props.stockSymbol, updateChart)

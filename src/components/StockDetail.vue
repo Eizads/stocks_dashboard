@@ -16,44 +16,47 @@
       </div>
     </div>
 
-    <div class="row justify-start items-start q-col-gutter-sm q-px-xl q-pt-xl">
-      <div class="col-12 col-md-10">
+    <div class="row justify-start items-start q-mx-xl q-pt-xl">
+      <div class="col-12 col-sm-9">
         <h1 class="text-h5 text-bold q-my-none">{{ store.selectedStock.name }}</h1>
 
         <h2 class="q-my-none q-py-none" style="font-size: 1rem; font-weight: normal">
           {{ store.selectedStock.exchange }}: {{ store.selectedStock.symbol }}
         </h2>
-
-        <div v-if="isWeekday(now)">
-          <div v-if="latestStockPrice && latestStockTime">
-            <h3 class="text-h4 q-my-sm">
-              {{ Math.round(latestStockPrice * 100) / 100 }}
-              <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
-            </h3>
-            <p :class="comparePrice > 0 ? 'text-green' : 'text-red'">
-              {{ Math.round(comparePrice * 100) / 100 }}
-              {{ `(${Math.round(percentChange * 100) / 100}%)` }}
-            </p>
-            <p class="text-grey-7">
-              {{ latestStockTime }}
-            </p>
-          </div>
-          <div v-if="!latestStockPrice && store.stockHistoryToday.length > 0 && latestStockTime">
-            <h3 class="text-h4 q-my-sm">
-              {{ Math.round(store.stockHistoryToday[0].y * 100) / 100 }}
-              <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
-            </h3>
-            <p :class="comparePrice > 0 ? 'text-green' : 'text-red'">
-              {{ Math.round(comparePrice * 100) / 100 }}
-              {{ `(${Math.round(percentChange * 100) / 100}%)` }}
-            </p>
-
-            <p class="text-grey-7">
-              {{ formattedDate }}
-            </p>
-          </div>
+        <!-- <div v-if="isWeekday(now) && marketOpen()"> -->
+        <!-- during market open with live data -->
+        <div v-if="latestStockPrice && latestStockTime">
+          <h3 class="text-h4 q-my-sm">
+            {{ Math.round(latestStockPrice * 100) / 100 }}
+            <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
+          </h3>
+          <p :class="comparePrice > 0 ? 'text-green' : 'text-red'">
+            {{ Math.round(comparePrice * 100) / 100 }}
+            {{ `(${Math.round(percentChange * 100) / 100}%)` }}
+          </p>
+          <p class="text-grey-7">
+            {{ latestStockTime }}
+          </p>
         </div>
-        <div v-else>
+        <!-- during market open with no live data -->
+        <div v-else-if="!latestStockPrice && store.stockHistoryToday.length > 0 && latestStockTime">
+          {{}}
+          <h3 class="text-h4 q-my-sm">
+            {{ Math.round(store.stockHistoryToday[0].y * 100) / 100 }}
+            <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
+          </h3>
+          <p :class="comparePrice > 0 ? 'text-green' : 'text-red'">
+            {{ Math.round(comparePrice * 100) / 100 }}
+            {{ `(${Math.round(percentChange * 100) / 100}%)` }}
+          </p>
+
+          <p class="text-grey-7">
+            {{ formattedDate }}
+          </p>
+        </div>
+        <!-- </div> -->
+        <!-- after market -->
+        <!-- <div v-else>
           <h3 class="text-h4 q-my-sm">
             {{ Math.round(store.closingPrice * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
@@ -62,10 +65,10 @@
           <p class="text-grey-7">
             {{ formattedDate }}
           </p>
-        </div>
+        </div> -->
       </div>
-      <div class="col-12 col-md-2">
-        <div class="flex justify-end">
+      <div class="col-12 col-sm-3">
+        <div :class="$q.screen.gt.sm ? 'flex justify-center' : 'flex justify-start'">
           <q-btn
             class="bg-blue text-white text-center"
             size="md"
@@ -101,20 +104,24 @@ import { ref, computed, watch } from 'vue'
 import { useDateUtils } from 'src/composables/useDateUtils'
 import StockChart from './StockChart.vue'
 import { useStockStore } from 'src/stores/store'
+import { useQuasar } from 'quasar'
 
 export default {
   components: {
     StockChart,
   },
   setup() {
+    // eslint-disable-next-line no-unused-vars
+    const $q = useQuasar()
     const route = useRoute()
     const store = useStockStore()
     const liveData = ref([])
-    const { isWeekday } = useDateUtils()
+    const { isWeekday, marketOpen, beforeMarket, afterMarket } = useDateUtils()
     const now = new Date()
 
     const latestStockPrice = computed(() => store.latestStockPrice)
     const latestStockTime = computed(() => store.latestStockTime)
+    console.log('stock time ----', latestStockTime.value)
     watch(
       () => store.selectedStock,
       (newSymbol, oldSymbol) => {
@@ -131,23 +138,86 @@ export default {
       hour12: true, // "a.m." or "p.m."
       timeZoneName: 'short', // "EDT" (Eastern Daylight Time)
     })
+    // const comparePrice = computed(() => {
+    //   if (latestStockPrice.value) {
+    //     return latestStockPrice.value - store.closingPrice
+    //   } else {
+    //     if (store?.stockHistoryToday) {
+    //       return store.stockHistoryToday[0].y - store.closingPrice
+    //     } else return ''
+    //   }
+    // })
     const comparePrice = computed(() => {
-      if (latestStockPrice.value) {
-        return latestStockPrice.value - store.closingPrice
-      } else {
-        if (store?.stockHistoryToday) {
-          return store.stockHistoryToday[0].y - store.closingPrice
-        } else return ''
+      const now = new Date() // ✅ Ensure `now` is defined
+      console.log('⏳ Checking price comparison at:', now.toLocaleTimeString())
+
+      if (isWeekday(now)) {
+        if (marketOpen()) {
+          console.log('📈 Market is OPEN')
+          return latestStockPrice.value
+            ? latestStockPrice.value - store.closingPrice
+            : store.stockHistoryToday?.[0]?.y - store.closingPrice
+        }
+
+        if (beforeMarket()) {
+          console.log('⏳ Before Market Open')
+          return store.stockHistoryYesterday?.[0]?.y - store.closingPrice
+        }
+
+        if (afterMarket()) {
+          console.log('📉 Market is CLOSED (After Hours)')
+          return store.stockHistoryToday?.[0]?.y - store.closingPrice
+        }
       }
+
+      console.log("📅 Non-trading day, using yesterday's closing price")
+      return store.stockHistoryYesterday?.[0]?.y - store.closingPrice // ✅ Default return
     })
+    // const percentChange = computed(() => {
+    //   const now = new Date() // ✅ Ensure `now` is defined
+    //   console.log('⏳ Checking price comparison at:', now.toLocaleTimeString())
+
+    //   if (isWeekday(now)) {
+    //     if (marketOpen()) {
+    //       return latestStockPrice.value
+    //         ? ((latestStockPrice.value - store.closingPrice) / store.closingPrice) * 100
+    //         : ((store.stockHistoryToday[0]?.y - store.closingPrice) / store.closingPrice) * 100
+    //     }
+    //   }
+    // })
+
     const percentChange = computed(() => {
-      if (latestStockPrice.value) {
-        return ((latestStockPrice.value - store.closingPrice) / store.closingPrice) * 100
-      } else {
-        if (store?.stockHistoryToday) {
-          return ((store.stockHistoryToday[0].y - store.closingPrice) / store.closingPrice) * 100
-        } else return ''
+      const now = new Date() // ✅ Ensure `now` is defined
+      console.log('⏳ Checking price comparison at:', now.toLocaleTimeString())
+
+      if (!store.closingPrice || store.closingPrice === 0) {
+        console.warn('⚠️ Closing price is missing or zero, returning 0% change.')
+        return 0
       }
+
+      if (isWeekday(now)) {
+        if (marketOpen()) {
+          console.log('📈 Market is OPEN')
+          return latestStockPrice.value
+            ? ((latestStockPrice.value - store.closingPrice) / store.closingPrice) * 100
+            : ((store.stockHistoryToday?.[0]?.y - store.closingPrice) / store.closingPrice) * 100
+        }
+
+        if (beforeMarket()) {
+          console.log('⏳ Before Market Open')
+          return (
+            ((store.stockHistoryYesterday?.[0]?.y - store.closingPrice) / store.closingPrice) * 100
+          )
+        }
+
+        if (afterMarket()) {
+          console.log('📉 Market is CLOSED (After Hours)')
+          return ((store.stockHistoryToday?.[0]?.y - store.closingPrice) / store.closingPrice) * 100
+        }
+      }
+
+      console.log("📅 Non-trading day, using yesterday's closing price")
+      return ((store.stockHistoryYesterday?.[0]?.y - store.closingPrice) / store.closingPrice) * 100
     })
     const isInWatchlist = computed(() => store.isInWatchList(store.selectedStock))
 
@@ -182,6 +252,7 @@ export default {
       toggleWatchlist,
       isInWatchlist,
       afterHours,
+      marketOpen,
     }
   },
 }
