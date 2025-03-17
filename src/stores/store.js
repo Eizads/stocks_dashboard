@@ -15,6 +15,7 @@ export const useStockStore = defineStore('stockStore', () => {
   const liveData = ref([])
   const selectedStock = ref(LocalStorage.getItem('selectedStock') || null)
   const closingPrice = ref(LocalStorage.getItem('closingPrice') || [])
+  const modalViewed = ref(LocalStorage.getItem('modalViewed') || false)
 
   let parsedStocks = []
 
@@ -227,6 +228,13 @@ export const useStockStore = defineStore('stockStore', () => {
     },
     { deep: true },
   )
+  watch(
+    modalViewed,
+    (newValue) => {
+      LocalStorage.set('modalViewed', newValue)
+    },
+    { deep: true },
+  )
 
   watch(
     watchList,
@@ -270,5 +278,6 @@ export const useStockStore = defineStore('stockStore', () => {
     closingPrice,
     latestStockTime,
     setClosingPrice,
+    modalViewed,
   }
 })

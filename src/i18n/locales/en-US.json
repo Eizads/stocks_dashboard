@@ -1,0 +1,17 @@
+{
+  "text0": "Take Control<br/>of Your Future",
+  "title1": "Project Description",
+  "text1": "Stocks Dashboard is a real-time financial analytics web application that provides stock market data, including live price updates, historical trends, and market performance metrics. It allows users to track stocks, view technical charts, and maintain a personalized watchlist.",
+  "title2": "Tech Stack & Specifications",
+
+  "text2": [
+    "<span class='text-bold'>Vue 3</span> JavaScript framework for building reactive UI components",
+    "<span class='text-bold'>Quasar Framework</span> UI framework for responsive and performant components",
+    "<span class='text-bold'>Pinia</span> State management for stock data and watchlist Vue-Router Handles stock detail navigation",
+    "<span class='text-bold'>Vue-Chart-3 + Chart.js</span> Data visualization with interactive stock charts",
+    "<span class='text-bold'>Axios</span> API requests to fetch stock history & financial data",
+    "<span class='text-bold'>Local Storage</span> Caches user watchlist, stock data, and last closing price",
+    "<span class='text-bold'>Twelve Data API</span> Fetches real-time and historical stock prices - <span class='text-red'>this application uses the free version of the API which is limited to 1 websocket connection, market data restrictions and live data availability for selected stocks only. Furthermore The API only provides daily price updates until 3:59 PM, which causes some stock calculations to differ from other sources</span>",
+    "<span class='text-bold'>WebSocket (Twelve Data)</span> Provides live stock price updates"
+  ]
+}
