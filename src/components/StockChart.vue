@@ -93,16 +93,9 @@ export default defineComponent({
             autoSkip: false,
 
             callback: function (value) {
-              // return index % 12 === 0 ? this.getLabelForValue(val) : ''
-
               const chart = this.chart // This will reference the Chart.js instance
-              // console.log('callback chart', chart)
               const xAxis = chart.scales['x'] // Get the x-axis scale
               const label = xAxis.getLabelForValue(value) // Get the label for the current tick value
-
-              // Example of logging the x-axis value and its corresponding label
-              // console.log('Tick Value:', value)
-              // console.log('Tick Label:', label)
 
               // If the value corresponds to a full hour, return it formatted, else return an empty string
               return value % 60 === 0 ? label : ''
@@ -164,15 +157,9 @@ export default defineComponent({
       borderColor.value = prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
 
       chart.options.scales.x.ticks.callback = function (value) {
-        // return index % 12 === 0 ? this.getLabelForValue(val) : ''
-
         // console.log('callback chart', chart)
         const xAxis = chart.scales['x'] // Get the x-axis scale
         const label = xAxis.getLabelForValue(value) // Get the label for the current tick value
-
-        // Example of logging the x-axis value and its corresponding label
-        // console.log('Tick Value:', value)
-        // console.log('Tick Label:', label)
 
         // If the value corresponds to a full hour, return it formatted, else return an empty string
         return value % 60 === 0 ? label : ''
@@ -218,13 +205,8 @@ export default defineComponent({
 
           prices.value = [...todayData.value]
           lastUpdatedTime.value = todayData.value[0].x // Store last historical timestamp
+
           if (now.getTime() > endTime.getTime()) {
-            console.log('now greater')
-            store.closingPrice = todayData.value[0].y
-            store.setClosingPrice(todayData.value[0]?.y) // ✅ Update closing price
-            console.log('closing price from today mounted', store.closingPrice)
-          } else {
-            console.log('now smaller')
             store.closingPrice = yesterdayData.value[0].y
             store.setClosingPrice(yesterdayData.value[0]?.y) // ✅ Update closing price
             console.log('closing price from yesterday mounted', store.closingPrice)
@@ -275,13 +257,6 @@ export default defineComponent({
           lastUpdatedTime.value = todayData[0].x
 
           if (now.getTime() > endTime.getTime()) {
-            console.log('now greater')
-
-            store.setClosingPrice(todayData[0]?.y) // ✅ Update closing price
-            console.log('closing price from today watch', store.closingPrice)
-          } else {
-            console.log('now smaller')
-
             store.setClosingPrice(yesterdayData[0]?.y) // ✅ Use last available price
             console.log('closing price from yesterday watch', store.closingPrice)
           }
@@ -314,7 +289,6 @@ export default defineComponent({
       store,
       formattedArray,
       handleChartUpdate,
-      // handleChartRender,
     }
   },
 })

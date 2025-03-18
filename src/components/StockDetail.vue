@@ -117,26 +117,17 @@ export default {
       (newSymbol, oldSymbol) => {
         console.log(`🔄 Stock changed from ${oldSymbol} to ${newSymbol}, reconnecting WebSocket...`)
         store.liveData = []
-        // store.closingPrice = []
       },
     )
     const formattedDate = new Date().toLocaleString('en-US', {
-      month: 'short', // "Mar"
-      day: 'numeric', // "12"
-      hour: 'numeric', // "10"
-      minute: '2-digit', // "42"
-      hour12: true, // "a.m." or "p.m."
-      timeZoneName: 'short', // "EDT" (Eastern Daylight Time)
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZoneName: 'short',
     })
-    // const comparePrice = computed(() => {
-    //   if (latestStockPrice.value) {
-    //     return latestStockPrice.value - store.closingPrice
-    //   } else {
-    //     if (store?.stockHistoryToday) {
-    //       return store.stockHistoryToday[0].y - store.closingPrice
-    //     } else return ''
-    //   }
-    // })
+
     const comparePrice = computed(() => {
       const now = new Date()
       console.log('⏳ Checking price comparison at:', now.toLocaleTimeString())
@@ -169,18 +160,6 @@ export default {
       console.log("📅 Non-trading day, using yesterday's closing price")
       return store.stockHistoryYesterday?.[0]?.y - store.closingPrice
     })
-    // const percentChange = computed(() => {
-    //   const now = new Date() // ✅ Ensure `now` is defined
-    //   console.log('⏳ Checking price comparison at:', now.toLocaleTimeString())
-
-    //   if (isWeekday(now)) {
-    //     if (marketOpen()) {
-    //       return latestStockPrice.value
-    //         ? ((latestStockPrice.value - store.closingPrice) / store.closingPrice) * 100
-    //         : ((store.stockHistoryToday[0]?.y - store.closingPrice) / store.closingPrice) * 100
-    //     }
-    //   }
-    // })
 
     const percentChange = computed(() => {
       const now = new Date()
