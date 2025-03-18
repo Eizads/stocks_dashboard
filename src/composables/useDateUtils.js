@@ -9,6 +9,12 @@ export function useDateUtils() {
     return new Intl.DateTimeFormat('en-CA').format(yesterdayDate)
   }
 
+  const getDayBeforeYesterday = () => {
+    const dayBeforeYesterdayDate = new Date()
+    dayBeforeYesterdayDate.setDate(dayBeforeYesterdayDate.getDate() - 2)
+    return new Intl.DateTimeFormat('en-CA').format(dayBeforeYesterdayDate)
+  }
+
   const isWeekday = (date) => {
     const day = date.getDay()
     return day !== 0 && day !== 6
@@ -47,7 +53,7 @@ export function useDateUtils() {
     endTime.setHours(16, 0, 0, 0) // Market closes at 4:00 PM
 
     // Check if current time is before market open
-    return now.getTime() >= startTime.getTime()
+    return now.getTime() <= startTime.getTime()
   }
   const afterMarket = () => {
     const now = new Date()
@@ -58,12 +64,13 @@ export function useDateUtils() {
     endTime.setHours(16, 0, 0, 0) // Market closes at 4:00 PM
 
     // Check if current time is before market open
-    return now.getTime() <= endTime.getTime()
+    return now.getTime() >= endTime.getTime()
   }
 
   return {
     getToday,
     getYesterday,
+    getDayBeforeYesterday,
     isWeekday,
     getLastTradingDay,
     marketOpen,

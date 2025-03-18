@@ -14,7 +14,8 @@ export const useStockStore = defineStore('stockStore', () => {
   const watchList = ref(LocalStorage.getItem('watchList') || [])
   const liveData = ref([])
   const selectedStock = ref(LocalStorage.getItem('selectedStock') || null)
-  const closingPrice = ref(LocalStorage.getItem('closingPrice') || [])
+  const closingPrice = ref(LocalStorage.getItem('closingPrice') || null)
+  const previousClosingPrice = ref(LocalStorage.getItem('previousClosingPrice') || null)
   const modalViewed = ref(LocalStorage.getItem('modalViewed') || false)
 
   let parsedStocks = []
@@ -219,6 +220,11 @@ export const useStockStore = defineStore('stockStore', () => {
     LocalStorage.set('closingPrice', price)
   }
 
+  const setPreviousClosingPrice = (price) => {
+    previousClosingPrice.value = price
+    LocalStorage.set('previousClosingPrice', price)
+  }
+
   // 🌟 WATCHERS: Automatically Sync State with Quasar LocalStorage
 
   watch(
@@ -259,6 +265,15 @@ export const useStockStore = defineStore('stockStore', () => {
     },
     { deep: true },
   )
+
+  watch(
+    previousClosingPrice,
+    (newValue) => {
+      LocalStorage.set('previousClosingPrice', newValue)
+    },
+    { deep: true },
+  )
+
   return {
     stocksList,
     stockHistoryYesterday,
@@ -276,8 +291,10 @@ export const useStockStore = defineStore('stockStore', () => {
     selectedStock,
     setSelectedStock,
     closingPrice,
+    previousClosingPrice,
     latestStockTime,
     setClosingPrice,
+    setPreviousClosingPrice,
     modalViewed,
   }
 })

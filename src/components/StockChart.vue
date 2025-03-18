@@ -97,13 +97,13 @@ export default defineComponent({
               // return index % 12 === 0 ? this.getLabelForValue(val) : ''
 
               const chart = this.chart // This will reference the Chart.js instance
-              console.log('callback chart', chart)
+              // console.log('callback chart', chart)
               const xAxis = chart.scales['x'] // Get the x-axis scale
               const label = xAxis.getLabelForValue(value) // Get the label for the current tick value
 
               // Example of logging the x-axis value and its corresponding label
-              console.log('Tick Value:', value)
-              console.log('Tick Label:', label)
+              // console.log('Tick Value:', value)
+              // console.log('Tick Label:', label)
 
               // If the value corresponds to a full hour, return it formatted, else return an empty string
               return value % 60 === 0 ? label : ''
@@ -167,13 +167,13 @@ export default defineComponent({
       chart.options.scales.x.ticks.callback = function (value) {
         // return index % 12 === 0 ? this.getLabelForValue(val) : ''
 
-        console.log('callback chart', chart)
+        // console.log('callback chart', chart)
         const xAxis = chart.scales['x'] // Get the x-axis scale
         const label = xAxis.getLabelForValue(value) // Get the label for the current tick value
 
         // Example of logging the x-axis value and its corresponding label
-        console.log('Tick Value:', value)
-        console.log('Tick Label:', label)
+        // console.log('Tick Value:', value)
+        // console.log('Tick Label:', label)
 
         // If the value corresponds to a full hour, return it formatted, else return an empty string
         return value % 60 === 0 ? label : ''
