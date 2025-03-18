@@ -1,300 +1,213 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
 import stocksService from 'src/services/stocks'
 import { useDateUtils } from 'src/composables/useDateUtils'
 import { LocalStorage } from 'quasar'
 import LZString from 'lz-string'
 
-export const useStockStore = defineStore('stockStore', () => {
-  const { getToday, getYesterday, isWeekday, getLastTradingDay } = useDateUtils()
-  const storedStocks = LocalStorage.getItem('stocksList')
+const STORAGE_KEYS = {
+  STOCKS_LIST: 'stocksList',
+  WATCH_LIST: 'watchList',
+  SELECTED_STOCK: 'selectedStock',
+  CLOSING_PRICE: 'closingPrice',
+  PREVIOUS_CLOSING_PRICE: 'previousClosingPrice',
+  MODAL_VIEWED: 'modalViewed',
+}
 
-  let stockHistoryYesterday = ref([])
-  let stockHistoryToday = ref([])
-  const watchList = ref(LocalStorage.getItem('watchList') || [])
-  const liveData = ref([])
-  const selectedStock = ref(LocalStorage.getItem('selectedStock') || null)
-  const closingPrice = ref(LocalStorage.getItem('closingPrice') || null)
-  const previousClosingPrice = ref(LocalStorage.getItem('previousClosingPrice') || null)
-  const modalViewed = ref(LocalStorage.getItem('modalViewed') || false)
+const MAX_LIVE_DATA_POINTS = 10
 
-  let parsedStocks = []
+export const useStockStore = defineStore('stockStore', {
+  state: () => {
+    const storedStocks = LocalStorage.getItem(STORAGE_KEYS.STOCKS_LIST)
+    let parsedStocks = []
 
-  if (storedStocks) {
-    try {
-      const decompressed = LZString.decompress(storedStocks)
-      parsedStocks = decompressed ? JSON.parse(decompressed) : [] // ✅ Ensure valid array
-    } catch (error) {
-      console.error('❌ Error parsing stocks from LocalStorage:', error)
-      parsedStocks = [] // ✅ Fallback to empty array
-    }
-  }
-  const stocksList = ref(parsedStocks) // ✅ Safe initialization
-
-  const setSelectedStock = (stock) => {
-    selectedStock.value = { ...stock } // Updates store reactively
-    LocalStorage.set('selectedStock', selectedStock.value)
-  }
-  const fetchStockList = async () => {
-    if (stocksList.value && stocksList.value.length > 0) {
-      console.log('✅ Using cached stocks from LocalStorage')
-      return // Prevent duplicate API calls
+    if (storedStocks) {
+      try {
+        const decompressed = LZString.decompress(storedStocks)
+        parsedStocks = decompressed ? JSON.parse(decompressed) : []
+      } catch (error) {
+        console.error('❌ Error parsing stocks from LocalStorage:', error)
+        parsedStocks = []
+      }
     }
 
-    try {
-      console.log('🔄 Fetching stock data from API...')
-      const response = await stocksService.getStocksList()
-      stocksList.value = response.data?.data ?? []
-      console.log('fetched stocks list', stocksList.value)
-
-      // ✅ Compress and store in LocalStorage
-      LocalStorage.set('stocksList', LZString.compress(JSON.stringify(stocksList.value)))
-      return response.data
-    } catch (error) {
-      console.error('Error fetching stocks', error)
-      stocksList.value = []
+    return {
+      stocksList: parsedStocks,
+      stockHistoryYesterday: [],
+      stockHistoryToday: [],
+      watchList: LocalStorage.getItem(STORAGE_KEYS.WATCH_LIST) || [],
+      liveData: [],
+      selectedStock: LocalStorage.getItem(STORAGE_KEYS.SELECTED_STOCK) || null,
+      closingPrice: LocalStorage.getItem(STORAGE_KEYS.CLOSING_PRICE) || null,
+      previousClosingPrice: LocalStorage.getItem(STORAGE_KEYS.PREVIOUS_CLOSING_PRICE) || null,
+      modalViewed: LocalStorage.getItem(STORAGE_KEYS.MODAL_VIEWED) || false,
+      webSocket: null,
     }
-  }
+  },
 
-  const fetchStockHistory = async (symbol) => {
-    try {
-      const response = await stocksService.getStockHistory(symbol)
-      if (response) {
-        console.log('res is', response)
+  getters: {
+    latestStockPrice: (state) => {
+      return state.liveData.length > 0 ? state.liveData[state.liveData.length - 1].price : ''
+    },
+    latestStockTime: (state) => {
+      if (state.liveData.length === 0) return null
 
-        const now = new Date()
-        // let day = now.getDay()
+      const time = state.liveData[state.liveData.length - 1].timestamp * 1000
+      return new Date(time).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZoneName: 'short',
+      })
+    },
+  },
 
-        const dayBefore = new Date()
-        dayBefore.setDate(now.getDate() - 1) // ✅ Get previous day as Date object
+  actions: {
+    // Stock Selection and Price Actions
+    setSelectedStock(stock) {
+      this.selectedStock = { ...stock }
+      LocalStorage.set(STORAGE_KEYS.SELECTED_STOCK, this.selectedStock)
+    },
 
-        let yesterday, today
+    setClosingPrice(price) {
+      this.closingPrice = price
+      LocalStorage.set(STORAGE_KEYS.CLOSING_PRICE, price)
+    },
 
-        if (isWeekday(now) && isWeekday(dayBefore)) {
-          // ✅ If today and yesterday are weekdays, use normal yesterday/today
-          yesterday = getYesterday()
-          today = getToday()
-        } else if (isWeekday(now) && !isWeekday(dayBefore)) {
-          // ✅ If today is Monday, but yesterday was a weekend → Get Friday's data
-          yesterday = getLastTradingDay()
+    setPreviousClosingPrice(price) {
+      this.previousClosingPrice = price
+      LocalStorage.set(STORAGE_KEYS.PREVIOUS_CLOSING_PRICE, price)
+    },
 
-          today = getToday()
-          console.log('yesterday,today', yesterday, today)
-        } else {
-          // ✅ If today is a weekend, get last Friday's data
-          yesterday = getLastTradingDay() // Friday
-          today = getLastTradingDay() // Use the same Friday data
+    // WebSocket Actions
+    connectToWebSocket(symbol, onMessageCallback) {
+      try {
+        // Disconnect existing connection if any
+        this.disconnectWebSocket()
+
+        // Create new connection
+        this.webSocket = stocksService.connectWebSocket(symbol, onMessageCallback, this)
+
+        if (!this.webSocket) {
+          console.error('❌ Failed to establish WebSocket connection')
         }
+      } catch (error) {
+        console.error('❌ Error connecting to WebSocket:', error)
+      }
+    },
 
-        console.log('📅 Fetching data for:')
-        console.log('➡️ Yesterday:', yesterday)
-        console.log('➡️ Today:', today)
-        let yesterdayData, todayData
-        // if (day === 1) {
-        // ✅ Filter history data for the correct dates
-        yesterdayData = response?.filter((data) => data.datetime?.startsWith(yesterday))
-        todayData = response?.filter((data) => data.datetime?.startsWith(today))
-        // } else {
-        //   // ✅ Filter history data for the correct dates
-        //   yesterdayData = response.data?.filter((data) => data.datetime?.startsWith(yesterday))
-        //   todayData = response.data?.filter((data) => data.datetime?.startsWith(today))
-        // }
+    disconnectWebSocket() {
+      if (this.webSocket) {
+        stocksService.disconnectWebSocket()
+        this.webSocket = null
+        this.liveData = []
+      }
+    },
 
-        console.log("📊 Filtered Yesterday's Data:", yesterdayData)
-        console.log("📊 Filtered Today's Data:", todayData)
+    // Live Data Actions
+    addLiveData(newData) {
+      if (!newData?.price || this.liveData.some((p) => p.price === newData.price)) {
+        return
+      }
 
-        // ✅ Format yesterday's data
-        stockHistoryYesterday.value = yesterdayData?.map((data) => {
-          const dateObj = new Date(data.datetime.replace(' ', 'T'))
-          return {
-            x: dateObj.toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            }),
-            y: parseFloat(data.close), // ✅ Convert price to float
-          }
-        })
+      this.liveData.push(newData)
+      if (this.liveData.length > MAX_LIVE_DATA_POINTS) {
+        this.liveData.shift()
+      }
+    },
 
-        // ✅ Format today's data
-        stockHistoryToday.value = todayData?.map((data) => {
-          const dateObj = new Date(data.datetime.replace(' ', 'T'))
-          return {
-            x: dateObj.toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            }),
-            y: parseFloat(data.close), // ✅ Convert price to float
-          }
-        })
+    // Data Fetching Actions
+    async fetchStockList() {
+      if (this.stocksList.length > 0) {
+        console.log('✅ Using cached stocks from LocalStorage')
+        return
+      }
 
-        console.log("📊 Formatted Yesterday's Stock History:", stockHistoryYesterday.value)
-        console.log("📊 Formatted Today's Stock History:", stockHistoryToday.value)
+      try {
+        console.log('🔄 Fetching stock data from API...')
+        const response = await stocksService.getStocksList()
+        this.stocksList = response.data?.data ?? []
+
+        LocalStorage.set(
+          STORAGE_KEYS.STOCKS_LIST,
+          LZString.compress(JSON.stringify(this.stocksList)),
+        )
+        return response.data
+      } catch (error) {
+        console.error('❌ Error fetching stocks:', error)
+        this.stocksList = []
+      }
+    },
+
+    async fetchStockHistory(symbol) {
+      try {
+        const response = await stocksService.getStockHistory(symbol, this)
+        if (!response) return { todayData: [], yesterdayData: [] }
+
+        const { getToday, getYesterday, getLastTradingDay, isWeekday } = useDateUtils()
+        const now = new Date()
+        const dayBefore = new Date(now)
+        dayBefore.setDate(now.getDate() - 1)
+
+        const yesterday =
+          isWeekday(now) && isWeekday(dayBefore) ? getYesterday() : getLastTradingDay()
+        const today = isWeekday(now) ? getToday() : getLastTradingDay()
+
+        const yesterdayData = response.filter((data) => data.datetime?.startsWith(yesterday))
+        const todayData = response.filter((data) => data.datetime?.startsWith(today))
+
+        this.stockHistoryYesterday = this.formatHistoryData(yesterdayData)
+        this.stockHistoryToday = this.formatHistoryData(todayData)
 
         return {
-          todayData: stockHistoryToday.value,
-          yesterdayData: stockHistoryYesterday.value,
+          todayData: this.stockHistoryToday,
+          yesterdayData: this.stockHistoryYesterday,
         }
+      } catch (error) {
+        console.error('❌ Error fetching price history:', error)
+        return { todayData: [], yesterdayData: [] }
       }
-    } catch (error) {
-      console.error('❌ Error fetching price history:', error)
-      return { todayData: [], yesterdayData: [] } // ✅ Return consistent empty structure
-    }
-  }
+    },
 
-  const getFormattedTime = () =>
-    new Date().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    })
+    // Watchlist Actions
+    addToWatchList(stock) {
+      if (this.isInWatchList(stock)) return
 
-  const addToWatchList = (stock) => {
-    const exists = watchList.value.find(
-      (s) => s.exchange === stock.exchange && s.symbol === stock.symbol,
-    )
-    if (!exists) {
-      watchList.value.push(stock)
-      LocalStorage.set('watchList', watchList.value) // ✅ Persist watchlist
+      this.watchList.push(stock)
+      LocalStorage.set(STORAGE_KEYS.WATCH_LIST, this.watchList)
+      console.log('📋 WatchList Updated:', this.watchList)
+    },
 
-      console.log('WatchList Updated:', watchList.value)
-    }
-  }
+    removeFromWatchList(stock) {
+      if (!this.isInWatchList(stock)) {
+        console.log(`⚠️ Stock ${stock.exchange}-${stock.symbol} not found in watchlist`)
+        return
+      }
 
-  const removeFromWatchList = (stock) => {
-    // Ensure the stock exists before removing it
-    const exists = watchList.value.some(
-      (s) => s.exchange === stock.exchange && s.symbol === stock.symbol,
-    )
-
-    if (exists) {
-      const updatedWatchlist = watchList.value.filter(
-        (s) => !(s.exchange === stock.exchange && s.symbol === stock.symbol), // Remove matching stock
+      this.watchList = this.watchList.filter(
+        (s) => !(s.exchange === stock.exchange && s.symbol === stock.symbol),
       )
-      watchList.value = [...updatedWatchlist]
-      console.log(`Removed ${stock.exchange}-${stock.symbol} from watchlist`)
-      LocalStorage.set('watchList', watchList.value) // ✅ Persist watchlist
-    } else {
-      console.log(`⚠️ Stock ${stock.exchange}-${stock.symbol} not found in watchlist`)
-    }
-
-    console.log('📋 Updated Watchlist:', watchList.value)
-  }
-  const isInWatchList = (stock) => {
-    return watchList.value.some((s) => s.exchange === stock.exchange && s.symbol === stock.symbol)
-  }
-  const addLiveData = (newData) => {
-    if (!liveData.value.some((p) => p.price === newData.price)) {
-      liveData.value = [...liveData.value, newData]
-      console.log('live ----------', liveData.value)
-    }
-    if (liveData.value.length > 10) {
-      // Keep only the last 100 entries
-      liveData.value.shift()
-    }
-  }
-  const latestStockPrice = computed(() => {
-    return liveData.value.length > 0 ? liveData.value[liveData.value.length - 1].price : ''
-  })
-  const latestStockTime = computed(() => {
-    let time, formattedTime
-    if (liveData.value.length > 0) {
-      time = liveData.value[liveData.value.length - 1].timestamp * 1000
-      formattedTime = new Date(time).toLocaleString('en-US', {
-        month: 'short', // "Mar"
-        day: 'numeric', // "12"
-        hour: 'numeric', // "10"
-        minute: '2-digit', // "42"
-        hour12: true, // "a.m." or "p.m."
-        timeZoneName: 'short', // "EDT"
-      })
-    }
-    console.log('store formatted time from live', formattedTime)
-
-    return formattedTime
-  })
-
-  const setClosingPrice = (price) => {
-    closingPrice.value = price
-    LocalStorage.set('closingPrice', price)
-  }
-
-  const setPreviousClosingPrice = (price) => {
-    previousClosingPrice.value = price
-    LocalStorage.set('previousClosingPrice', price)
-  }
-
-  // 🌟 WATCHERS: Automatically Sync State with Quasar LocalStorage
-
-  watch(
-    stocksList,
-    (newValue) => {
-      LocalStorage.set('stocksList', LZString.compress(JSON.stringify(newValue)))
+      LocalStorage.set(STORAGE_KEYS.WATCH_LIST, this.watchList)
+      console.log(`✅ Removed ${stock.exchange}-${stock.symbol} from watchlist`)
     },
-    { deep: true },
-  )
-  watch(
-    modalViewed,
-    (newValue) => {
-      LocalStorage.set('modalViewed', newValue)
-    },
-    { deep: true },
-  )
 
-  watch(
-    watchList,
-    (newValue) => {
-      LocalStorage.set('watchList', newValue)
+    isInWatchList(stock) {
+      return this.watchList.some((s) => s.exchange === stock.exchange && s.symbol === stock.symbol)
     },
-    { deep: true },
-  )
 
-  watch(
-    selectedStock,
-    (newValue) => {
-      LocalStorage.set('selectedStock', newValue)
+    // Helper Methods
+    formatHistoryData(data) {
+      return (
+        data?.map((entry) => ({
+          x: new Date(entry.datetime.replace(' ', 'T')).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          }),
+          y: parseFloat(entry.close),
+        })) || []
+      )
     },
-    { deep: true },
-  )
-
-  watch(
-    closingPrice,
-    (newValue) => {
-      LocalStorage.set('closingPrice', newValue)
-    },
-    { deep: true },
-  )
-
-  watch(
-    previousClosingPrice,
-    (newValue) => {
-      LocalStorage.set('previousClosingPrice', newValue)
-    },
-    { deep: true },
-  )
-
-  return {
-    stocksList,
-    stockHistoryYesterday,
-    stockHistoryToday,
-    watchList,
-    fetchStockList,
-    getFormattedTime,
-    fetchStockHistory,
-    addToWatchList,
-    removeFromWatchList,
-    isInWatchList,
-    liveData,
-    addLiveData,
-    latestStockPrice,
-    selectedStock,
-    setSelectedStock,
-    closingPrice,
-    previousClosingPrice,
-    latestStockTime,
-    setClosingPrice,
-    setPreviousClosingPrice,
-    modalViewed,
-  }
+  },
 })

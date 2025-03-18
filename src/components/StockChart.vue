@@ -8,7 +8,6 @@
 import { Chart, registerables } from 'chart.js'
 import { LineChart, useLineChart } from 'vue-chart-3'
 import { ref, computed, defineComponent, watch, onMounted, onUnmounted } from 'vue'
-import stocksService from 'src/services/stocks.js'
 import { useStockStore } from 'src/stores/store'
 import { useDateUtils } from 'src/composables/useDateUtils'
 
@@ -184,7 +183,7 @@ export default defineComponent({
 
     onMounted(async () => {
       console.log('📡 Connecting WebSocket...')
-      stocksService.connectWebSocket(props.stockSymbol, updateChart)
+      store.connectToWebSocket(props.stockSymbol, updateChart)
 
       //getting stock history
       const { yesterdayData: yData, todayData: tData } = await store.fetchStockHistory(
@@ -248,7 +247,7 @@ export default defineComponent({
 
     onUnmounted(() => {
       console.log('🛑 Disconnecting WebSocket...')
-      stocksService.disconnectWebSocket()
+      store.disconnectWebSocket()
     })
 
     watch(
@@ -256,8 +255,8 @@ export default defineComponent({
       async (newSymbol, oldSymbol) => {
         console.log(`🔄 Stock changed from ${oldSymbol} to ${newSymbol}, reconnecting WebSocket...`)
 
-        // ✅ Disconnect old WebSocket before fetching new stock data
-        stocksService.disconnectWebSocket()
+        // Disconnect old WebSocket
+        store.disconnectWebSocket()
 
         // ✅ Fetch new stock history
         const { yesterdayData, todayData } = await store.fetchStockHistory(newSymbol)
@@ -305,7 +304,7 @@ export default defineComponent({
         }
 
         // ✅ Reconnect WebSocket for the new stock
-        stocksService.connectWebSocket(props.stockSymbol, updateChart)
+        store.connectToWebSocket(props.stockSymbol, updateChart)
       },
     )
 

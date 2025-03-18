@@ -11,8 +11,12 @@
   >
     <div class="container flex flex-column justify-between">
       <div class="row align-center justify-center full-width">
-        <div class="col-12 col-md-11">
-          <h1 class="text-white" v-html="t('text0')"></h1>
+        <div class="col-12 q-px-xl">
+          <h1
+            class="text-white"
+            :class="$q.screen.gt.sm ? 'text-h2' : 'text-h1'"
+            v-html="t('text0')"
+          ></h1>
         </div>
       </div>
       <div class="row full-width self-end q-pa-xl">
@@ -62,6 +66,7 @@ import { LocalStorage } from 'quasar'
 import { useStockStore } from 'src/stores/store'
 import { defineComponent, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useQuasar } from 'quasar'
 
 export default defineComponent({
   name: 'LandingPage',
@@ -70,7 +75,7 @@ export default defineComponent({
     const { t, tm } = useI18n()
     const store = useStockStore()
     const openProjectModal = ref(false)
-
+    const $q = useQuasar()
     const closeModal = () => {
       openProjectModal.value = false
       LocalStorage.set('modalViewed', true)
@@ -80,7 +85,7 @@ export default defineComponent({
         openProjectModal.value = true
       }
     })
-    return { t, tm, store, LocalStorage, closeModal, openProjectModal }
+    return { t, tm, store, LocalStorage, closeModal, openProjectModal, $q }
   },
 })
 </script>

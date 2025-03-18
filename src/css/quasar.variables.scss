@@ -28,7 +28,9 @@ body {
   }
 }
 h1,
-h2 {
+h2,
+.text-h1,
+.text-h2 {
   font-family: 'Roboto', sans-serif; /* For headers */
   font-weight: bold;
 }

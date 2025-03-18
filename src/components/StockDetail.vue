@@ -3,7 +3,7 @@
     <div class="row justify-center items-center">
       <div class="col-12">
         <div
-          v-if="!latestStockPrice && !afterHours"
+          v-if="!latestStockPrice && !afterHours && !store.stockHistoryToday.length"
           class="rounded-borders bg-red-3 q-pa-lg q-ma-lg"
           style="border-radius: 1rem; border: 3px solid #ef534f"
         >
@@ -23,8 +23,8 @@
         <h2 class="q-my-none q-py-none" style="font-size: 1rem; font-weight: normal">
           {{ store.selectedStock.exchange }}: {{ store.selectedStock.symbol }}
         </h2>
-        <!-- <div v-if="isWeekday(now) && marketOpen()"> -->
-        <!-- during market open with live data -->
+
+        <!-- Live data display -->
         <div v-if="latestStockPrice && latestStockTime">
           <h3 class="text-h4 q-my-sm">
             {{ Math.round(latestStockPrice * 100) / 100 }}
@@ -38,34 +38,25 @@
             {{ latestStockTime }}
           </p>
         </div>
-        <!-- during market open with no live data -->
-        <div v-else-if="!latestStockPrice && store.stockHistoryToday.length > 0 && latestStockTime">
+
+        <!-- Historical data display -->
+        <div
+          v-else-if="store.stockHistoryToday.length > 0 || store.stockHistoryYesterday.length > 0"
+        >
           <h3 class="text-h4 q-my-sm">
-            {{ Math.round(store.stockHistoryToday[0].y * 100) / 100 }}
+            {{ Math.round((getCurrentPrice || 0) * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
           </h3>
           <p :class="comparePrice > 0 ? 'text-green' : 'text-red'">
             {{ Math.round(comparePrice * 100) / 100 }}
             {{ `(${Math.round(percentChange * 100) / 100}%)` }}
           </p>
-
           <p class="text-grey-7">
             {{ formattedDate }}
           </p>
         </div>
-        <!-- </div> -->
-        <!-- after market -->
-        <!-- <div v-else>
-          <h3 class="text-h4 q-my-sm">
-            {{ Math.round(store.closingPrice * 100) / 100 }}
-            <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
-          </h3>
-
-          <p class="text-grey-7">
-            {{ formattedDate }}
-          </p>
-        </div> -->
       </div>
+
       <div class="col-12 col-sm-3">
         <div :class="$q.screen.gt.sm ? 'flex justify-center' : 'flex justify-start'">
           <q-btn
@@ -84,11 +75,12 @@
               :class="isInWatchlist ? 'text-white' : 'text-white'"
               class="relative"
             >
-            </q-icon
-          ></q-btn>
+            </q-icon>
+          </q-btn>
         </div>
       </div>
     </div>
+
     <div class="row justify-center items-center">
       <div class="col-12 q-px-xl">
         <StockChart :stockExchange="route.params.exchange" :stockSymbol="route.params.symbol" />
@@ -110,7 +102,6 @@ export default {
     StockChart,
   },
   setup() {
-    // eslint-disable-next-line no-unused-vars
     const $q = useQuasar()
     const route = useRoute()
     const store = useStockStore()
@@ -244,6 +235,14 @@ export default {
       return now.getTime() > endTime.getTime() ? true : false
     })
 
+    // Add a computed property for current price
+    const getCurrentPrice = computed(() => {
+      if (latestStockPrice.value) return latestStockPrice.value
+      if (store.stockHistoryToday.length > 0) return store.stockHistoryToday[0].y
+      if (store.stockHistoryYesterday.length > 0) return store.stockHistoryYesterday[0].y
+      return 0
+    })
+
     return {
       route,
       store,
@@ -259,6 +258,8 @@ export default {
       isInWatchlist,
       afterHours,
       marketOpen,
+      getCurrentPrice,
+      $q,
     }
   },
 }
