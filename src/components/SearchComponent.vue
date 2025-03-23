@@ -39,7 +39,7 @@
                       clickable
                       v-ripple
                     >
-                      <q-item-section avatar v-if="$q.screen.gt.xs">
+                      <q-item-section avatar v-if="q.screen.gt.xs">
                         <q-icon
                           v-if="uptrend"
                           name="bi-circle"
@@ -72,7 +72,7 @@
                         </q-item-label>
                       </q-item-section>
 
-                      <q-item-section side :style="$q.screen.gt.xs ? 'min-width: 250px' : ''">
+                      <q-item-section side :style="q.screen.gt.xs ? 'min-width: 250px' : ''">
                         <q-item-label style="font-size: 15px" class="text-grey">{{
                           stock.type
                         }}</q-item-label>
@@ -103,8 +103,7 @@ export default {
 
     const store = useStockStore()
 
-    // eslint-disable-next-line no-unused-vars
-    const $q = useQuasar()
+    const q = useQuasar()
     const searchQuery = ref('')
     const uptrend = ref(true)
 
@@ -160,6 +159,7 @@ export default {
       sortedStocks,
       uptrend,
       store,
+      q,
     }
   },
 }

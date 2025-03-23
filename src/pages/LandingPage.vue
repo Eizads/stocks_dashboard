@@ -14,7 +14,7 @@
         <div class="col-12 q-px-xl">
           <h1
             class="text-white"
-            :class="$q.screen.gt.sm ? 'text-h2' : 'text-h1'"
+            :class="q.screen.gt.sm ? 'text-h2' : 'text-h1'"
             v-html="t('text0')"
           ></h1>
         </div>
@@ -75,7 +75,7 @@ export default defineComponent({
     const { t, tm } = useI18n()
     const store = useStockStore()
     const openProjectModal = ref(false)
-    const $q = useQuasar()
+    const q = useQuasar()
     const closeModal = () => {
       openProjectModal.value = false
       LocalStorage.set('modalViewed', true)
@@ -85,7 +85,7 @@ export default defineComponent({
         openProjectModal.value = true
       }
     })
-    return { t, tm, store, LocalStorage, closeModal, openProjectModal, $q }
+    return { t, tm, store, LocalStorage, closeModal, openProjectModal, q }
   },
 })
 </script>

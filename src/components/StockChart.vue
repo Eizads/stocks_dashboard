@@ -31,6 +31,7 @@ export default defineComponent({
     const borderColor = ref(['#21ba45'])
     const yesterdayData = ref([]) // Stores yesterday's data
     const todayData = ref([])
+    const marketOpenTimer = ref(null)
 
     const generateTimeLabels = () => {
       const times = []
@@ -168,6 +169,39 @@ export default defineComponent({
       chart.update() // ✅ Apply the change
     }
 
+    const setupMarketOpenTimer = () => {
+      // Clear any existing timer first
+      if (marketOpenTimer.value) {
+        clearTimeout(marketOpenTimer.value)
+      }
+
+      const now = new Date()
+      const startTime = new Date()
+      startTime.setHours(9, 30, 0, 0)
+      const endTime = new Date()
+      endTime.setHours(16, 0, 0, 0)
+      const todayDate = new Date()
+      todayDate.setHours(0, 0, 0, 0)
+
+      // If we're before market open, set up a timer to fetch data when market opens
+      if (now.toDateString() === todayDate.toDateString() && now < startTime) {
+        const timeUntilMarketOpen = startTime.getTime() - now.getTime()
+        console.log(`⏰ Market opens in ${Math.round(timeUntilMarketOpen / 1000 / 60)} minutes`)
+
+        marketOpenTimer.value = setTimeout(async () => {
+          console.log('🕒 Market just opened, fetching new data...')
+          const { todayData: newTodayData } = await store.fetchStockHistory(props.stockSymbol)
+          if (newTodayData.length > 0) {
+            prices.value = [...newTodayData]
+            lastUpdatedTime.value = newTodayData[0].x
+            store.closingPrice = yesterdayData.value[0].y
+            store.setClosingPrice(yesterdayData.value[0]?.y)
+            console.log('📊 Updated chart with market open data')
+          }
+        }, timeUntilMarketOpen)
+      }
+    }
+
     onMounted(async () => {
       console.log('📡 Connecting WebSocket...')
       store.connectToWebSocket(props.stockSymbol, updateChart)
@@ -181,6 +215,10 @@ export default defineComponent({
       console.log('todya after fetch', todayData)
       yesterdayData.value = yData
       todayData.value = tData
+
+      // Set up market open timer if needed
+      setupMarketOpenTimer()
+
       if (yesterdayData.value.length > 0 && todayData.value.length > 0) {
         console.log('📊 today history', todayData.value)
         console.log('📊 yesterday data', yesterdayData.value)
@@ -202,7 +240,6 @@ export default defineComponent({
 
         if (now.toDateString() === todayDate.toDateString() && now >= startTime) {
           console.log("📅 Market is open today, showing today's data.")
-
           prices.value = [...todayData.value]
           lastUpdatedTime.value = todayData.value[0].x // Store last historical timestamp
 
@@ -220,16 +257,29 @@ export default defineComponent({
           store.closingPrice = yesterdayData.value[0].y
           store.setClosingPrice(yesterdayData.value[0]?.y) // ✅ Update closing price
           console.log('closing price from yesterday mounted', store.closingPrice)
-
-          console.log('last updated price', yesterdayData.value[0].y)
-          console.log('last updated price', store.closingPrice)
         }
+      } else if (yesterdayData.value.length > 0) {
+        // Handle case when only yesterday's data is available
+        console.log("📅 Only yesterday's data available, using that")
+        prices.value = [...yesterdayData.value]
+        lastUpdatedTime.value = yesterdayData.value[0].x
+        store.closingPrice = yesterdayData.value[0].y
+        store.setClosingPrice(yesterdayData.value[0]?.y)
+        console.log(
+          'closing price from yesterday mounted (only yesterday data)',
+          store.closingPrice,
+        )
       }
     })
 
     onUnmounted(() => {
       console.log('🛑 Disconnecting WebSocket...')
       store.disconnectWebSocket()
+      // Clear the market open timer if it exists
+      if (marketOpenTimer.value) {
+        clearTimeout(marketOpenTimer.value)
+        console.log('🛑 Cleared market open timer')
+      }
     })
 
     watch(
@@ -245,6 +295,10 @@ export default defineComponent({
 
         console.log('yesterday after fetch', yesterdayData)
         console.log('todya after fetch', todayData)
+
+        // Set up market open timer if needed
+        setupMarketOpenTimer()
+
         // ✅ Update the chart with new stock data
         const now = new Date()
         const startTime = new Date()

@@ -85,12 +85,26 @@ const getStockHistory = async (symbol, store) => {
   } else if (now.getDay() === 0 || now.getDay() === 6) {
     // Case: Weekend
     const lastTradingDay = getLastTradingDay()
-    const dayBeforeLastTradingDay = getDayBeforeYesterday()
-    const twoDaysBeforeLastTradingDay = new Date(dayBeforeLastTradingDay)
+    // Parse the date string correctly by adding time component
+    const lastTradingDayDate = new Date(`${lastTradingDay}T00:00:00`)
+    const dayBeforeLastTradingDayDate = new Date(lastTradingDayDate)
+    dayBeforeLastTradingDayDate.setDate(lastTradingDayDate.getDate() - 1)
+    const dayBeforeLastTradingDay = new Intl.DateTimeFormat('en-CA').format(
+      dayBeforeLastTradingDayDate,
+    )
+
+    // Calculate two days before by subtracting 1 from dayBeforeLastTradingDayDate
+    const twoDaysBeforeLastTradingDay = new Date(dayBeforeLastTradingDayDate)
     twoDaysBeforeLastTradingDay.setDate(twoDaysBeforeLastTradingDay.getDate() - 1)
     const twoDaysBeforeLastTradingDayStr = new Intl.DateTimeFormat('en-CA').format(
       twoDaysBeforeLastTradingDay,
     )
+
+    console.log('📅 Weekend case - Dates:', {
+      lastTradingDay,
+      dayBeforeLastTradingDay,
+      twoDaysBeforeLastTradingDayStr,
+    })
 
     const response = await axios.get(`${baseUrl}/time_series`, {
       params: {
@@ -103,8 +117,35 @@ const getStockHistory = async (symbol, store) => {
     })
 
     if (response.data?.values) {
-      const lastClose = getClosingPrice(response.data.values)
-      if (lastClose) store.setClosingPrice(lastClose)
+      const data = response.data.values
+      console.log('📊 Total data points received:', data.length)
+
+      const lastTradingDayData = data.filter((entry) => entry.datetime.startsWith(lastTradingDay))
+      const dayBeforeData = data.filter((entry) =>
+        entry.datetime.startsWith(dayBeforeLastTradingDay),
+      )
+
+      console.log('📊 Filtered data points:', {
+        lastTradingDay: lastTradingDayData.length,
+        dayBefore: dayBeforeData.length,
+      })
+
+      const lastClose = getClosingPrice(lastTradingDayData)
+      const dayBeforeClose = getClosingPrice(dayBeforeData)
+
+      console.log('💰 Closing prices:', {
+        lastClose,
+        dayBeforeClose,
+      })
+
+      if (lastClose) {
+        store.setClosingPrice(lastClose)
+        console.log('✅ Set closing price:', lastClose)
+      }
+      if (dayBeforeClose) {
+        store.setPreviousClosingPrice(dayBeforeClose)
+        console.log('✅ Set previous closing price:', dayBeforeClose)
+      }
     }
 
     return response.data?.values || []

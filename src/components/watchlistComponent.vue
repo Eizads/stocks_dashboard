@@ -28,7 +28,7 @@
                   <q-list separator class="full-width">
                     <!-- :to="`/${stock.exchange}-${stock.symbol}`" -->
                     <q-item v-for="(stock, index) in searchResult" :key="index" clickable v-ripple>
-                      <q-item-section avatar v-if="$q.screen.gt.xs">
+                      <q-item-section avatar v-if="q.screen.gt.xs">
                         <q-icon
                           v-if="uptrend"
                           name="bi-circle"
@@ -61,7 +61,7 @@
                         </q-item-label>
                       </q-item-section>
 
-                      <q-item-section side :style="$q.screen.gt.xs ? 'min-width: 250px' : ''">
+                      <q-item-section side :style="q.screen.gt.xs ? 'min-width: 250px' : ''">
                         <q-item-label style="font-size: 15px" class="text-grey">{{
                           stock.type
                         }}</q-item-label>
@@ -69,7 +69,7 @@
                       </q-item-section>
 
                       <!-- add stock to watchlist -->
-                      <q-item-section avatar v-if="$q.screen.gt.xs">
+                      <q-item-section avatar v-if="q.screen.gt.xs">
                         <q-icon
                           :name="isInWatchList(stock) ? 'bi-dash-circle' : 'bi-plus-circle'"
                           size="32px"
@@ -104,8 +104,7 @@ export default {
     const router = useRouter()
     const toggleStock = ref(false)
 
-    // eslint-disable-next-line no-unused-vars
-    const $q = useQuasar()
+    const q = useQuasar()
     const searchQuery = ref('')
     const uptrend = ref(true)
     console.log(store.fetchStockList().value)
@@ -177,6 +176,7 @@ export default {
       addStock,
       removeStock,
       isInWatchList,
+      q,
     }
   },
 }
