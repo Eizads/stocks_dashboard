@@ -10,6 +10,76 @@ const getStocksList = () => {
   return axios.get(`${baseUrl}/stocks`)
 }
 
+const getStockQuote = (symbol) => {
+  return axios.get(`${baseUrl}/quote?symbol=${symbol}&apikey=${apiKey}`)
+}
+const getStockInteraday = async (symbol) => {
+  try {
+    const response = await axios.get(`${baseUrl}/time_series`, {
+      params: {
+        symbol,
+        interval: '5min',
+        outputsize: '234',
+        apikey: apiKey,
+      },
+    })
+
+    const data = response.data?.values || []
+
+    // Group data by dates
+    const groupedData = data.reduce((acc, entry) => {
+      const date = entry.datetime.split(' ')[0]
+      if (!acc[date]) {
+        acc[date] = []
+      }
+      acc[date].push(entry)
+      return acc
+    }, {})
+
+    // Sort dates in descending order
+    const sortedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new Date(a))
+
+    // Get the three most recent dates
+    const [mostRecent, secondMostRecent, thirdMostRecent] = sortedDates
+
+    console.log('📅 Dates in response:', {
+      mostRecent,
+      secondMostRecent,
+      thirdMostRecent,
+      totalDates: sortedDates.length,
+    })
+
+    console.log('todayData', groupedData[mostRecent])
+    console.log('yesterdayData', groupedData[secondMostRecent])
+    console.log('dayBeforeYesterdayData', groupedData[thirdMostRecent])
+    // Return data organized by relative days
+    return {
+      todayData: groupedData[mostRecent] || [],
+      yesterdayData: groupedData[secondMostRecent] || [],
+      dayBeforeYesterdayData: groupedData[thirdMostRecent] || [],
+      dates: {
+        today: mostRecent,
+        yesterday: secondMostRecent,
+        dayBeforeYesterday: thirdMostRecent,
+      },
+      allData: data,
+    }
+  } catch (error) {
+    console.error('❌ Error fetching intraday data:', error)
+    return {
+      todayData: [],
+      yesterdayData: [],
+      dayBeforeYesterdayData: [],
+      dates: {
+        today: null,
+        yesterday: null,
+        dayBeforeYesterday: null,
+      },
+      allData: [],
+    }
+  }
+}
+
 const getClosingPrice = (data) => {
   if (!data || data.length === 0) return null
   const sortedData = [...data].sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
@@ -19,9 +89,8 @@ const getClosingPrice = (data) => {
 const getStockHistory = async (symbol, store) => {
   const {
     getToday,
-    getYesterday,
-    getDayBeforeYesterday,
     getLastTradingDay,
+    getDayBeforeYesterday,
     marketOpen,
     beforeMarket,
     afterMarket,
@@ -34,39 +103,29 @@ const getStockHistory = async (symbol, store) => {
 
   if (now.getDay() === 1) {
     // Case: Today is Monday
-    const [mondayResponse, fridayResponse, thursdayResponse] = await Promise.all([
-      axios.get(`${baseUrl}/time_series`, {
-        params: {
-          symbol,
-          interval: '1min',
-          start_date: `${getToday()} 09:30:00`,
-          end_date: `${getToday()} 16:00:00`,
-          apikey: apiKey,
-        },
-      }),
-      axios.get(`${baseUrl}/time_series`, {
-        params: {
-          symbol,
-          interval: '1min',
-          start_date: `${getLastTradingDay()} 09:30:00`,
-          end_date: `${getLastTradingDay()} 16:00:00`,
-          apikey: apiKey,
-        },
-      }),
-      axios.get(`${baseUrl}/time_series`, {
-        params: {
-          symbol,
-          interval: '1min',
-          start_date: `${getDayBeforeYesterday()} 09:30:00`,
-          end_date: `${getDayBeforeYesterday()} 16:00:00`,
-          apikey: apiKey,
-        },
-      }),
-    ])
+    console.log('📅 Monday case - Dates:', {
+      today: getToday(),
+      lastTradingDay: getLastTradingDay(),
+      dayBeforeYesterday: getDayBeforeYesterday(),
+      currentTime: now.toLocaleTimeString(),
+    })
 
-    mondayData = mondayResponse.data?.values || []
-    fridayData = fridayResponse.data?.values || []
-    thursdayData = thursdayResponse.data?.values || []
+    // Using new getStockInteraday function instead of multiple API calls
+    const stockData = await getStockInteraday(symbol)
+
+    console.log('📊 API Responses:', {
+      mondayData: stockData.todayData,
+      fridayData: stockData.yesterdayData,
+      thursdayData: stockData.dayBeforeYesterdayData,
+    })
+
+    mondayData = stockData.todayData || []
+    fridayData = stockData.yesterdayData || []
+    thursdayData = stockData.dayBeforeYesterdayData || []
+
+    console.log('marketOpen', marketOpen())
+    console.log('beforeMarket', beforeMarket())
+    console.log('afterMarket', afterMarket())
 
     if (afterMarket()) {
       const mondayClose = getClosingPrice(mondayData)
@@ -81,7 +140,11 @@ const getStockHistory = async (symbol, store) => {
       }
     }
 
-    return [...mondayData, ...fridayData, ...thursdayData]
+    // Return only today's data (Monday) and yesterday's data (Friday)
+    return {
+      todayData: mondayData,
+      yesterdayData: fridayData,
+    }
   } else if (now.getDay() === 0 || now.getDay() === 6) {
     // Case: Weekend
     const lastTradingDay = getLastTradingDay()
@@ -106,24 +169,14 @@ const getStockHistory = async (symbol, store) => {
       twoDaysBeforeLastTradingDayStr,
     })
 
-    const response = await axios.get(`${baseUrl}/time_series`, {
-      params: {
-        symbol,
-        interval: '1min',
-        start_date: `${twoDaysBeforeLastTradingDayStr} 09:30:00`,
-        end_date: `${lastTradingDay} 16:00:00`,
-        apikey: apiKey,
-      },
-    })
+    // Using new getStockInteraday function instead of direct API call
+    const stockData = await getStockInteraday(symbol)
 
-    if (response.data?.values) {
-      const data = response.data.values
-      console.log('📊 Total data points received:', data.length)
+    if (stockData.allData) {
+      console.log('📊 Total data points received:', stockData.allData.length)
 
-      const lastTradingDayData = data.filter((entry) => entry.datetime.startsWith(lastTradingDay))
-      const dayBeforeData = data.filter((entry) =>
-        entry.datetime.startsWith(dayBeforeLastTradingDay),
-      )
+      const lastTradingDayData = stockData.todayData
+      const dayBeforeData = stockData.yesterdayData
 
       console.log('📊 Filtered data points:', {
         lastTradingDay: lastTradingDayData.length,
@@ -148,26 +201,16 @@ const getStockHistory = async (symbol, store) => {
       }
     }
 
-    return response.data?.values || []
+    return stockData.allData || []
   } else {
     // Normal case: Regular trading day
-    const response = await axios.get(`${baseUrl}/time_series`, {
-      params: {
-        symbol,
-        interval: '1min',
-        start_date: `${getDayBeforeYesterday()} 09:30:00`,
-        end_date: `${getToday()} 16:00:00`,
-        apikey: apiKey,
-      },
-    })
+    // Using new getStockInteraday function instead of direct API call
+    const stockData = await getStockInteraday(symbol)
 
-    if (response.data?.values) {
-      const data = response.data.values
-      const yesterdayData = data.filter((entry) => entry.datetime.startsWith(getYesterday()))
-      const dayBeforeData = data.filter((entry) =>
-        entry.datetime.startsWith(getDayBeforeYesterday()),
-      )
-      const todayData = data.filter((entry) => entry.datetime.startsWith(getToday()))
+    if (stockData.allData) {
+      const yesterdayData = stockData.yesterdayData
+      const dayBeforeData = stockData.dayBeforeYesterdayData
+      const todayData = stockData.todayData
 
       if (beforeMarket()) {
         const yesterdayClose = getClosingPrice(yesterdayData)
@@ -183,7 +226,7 @@ const getStockHistory = async (symbol, store) => {
       }
     }
 
-    return response.data?.values || []
+    return stockData.allData || []
   }
 }
 
@@ -268,7 +311,9 @@ const disconnectWebSocket = () => {
 
 export default {
   getStocksList,
+  getStockQuote,
   connectWebSocket,
   getStockHistory,
   disconnectWebSocket,
+  getStockInteraday,
 }

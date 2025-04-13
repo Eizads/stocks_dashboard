@@ -25,25 +25,25 @@ export default defineComponent({
 
   setup(props) {
     const store = useStockStore()
-    const { getToday, getYesterday } = useDateUtils()
+    const { marketOpen, beforeMarket, afterMarket } = useDateUtils()
     const lastUpdatedTime = ref(null)
     const formattedArray = ref([])
     const borderColor = ref(['#21ba45'])
     const yesterdayData = ref([]) // Stores yesterday's data
     const todayData = ref([])
+    const dayBeforeYesterdayData = ref([]) // Add reference for day before yesterday
     const marketOpenTimer = ref(null)
 
     const generateTimeLabels = () => {
       const times = []
 
       const startTime = new Date()
-      startTime.setHours(9, 30, 0, 0) // set start time to 9:00 a.m.
+      startTime.setHours(9, 30, 0, 0) // set start time to 9:30 a.m.
 
       const endTime = new Date()
       endTime.setHours(16, 0, 0, 0) // set end time to 4:00 p.m.
-      // Loop until the startTime exceeds the endTime
+
       while (startTime <= endTime) {
-        // Format the current time label
         const label = startTime.toLocaleTimeString('en-US', {
           hour: 'numeric',
           minute: '2-digit',
@@ -51,8 +51,8 @@ export default defineComponent({
         })
         times.push(label)
 
-        // Increment the startTime by 5 minute
-        startTime.setMinutes(startTime.getMinutes() + 1)
+        // Increment by 5 minutes to match the new interval
+        startTime.setMinutes(startTime.getMinutes() + 5)
       }
 
       return times
@@ -60,11 +60,177 @@ export default defineComponent({
 
     const timestamps = ref(generateTimeLabels())
 
-    // chart setup
+    const prices = ref([])
 
+    console.log('prices with hisotry added', prices)
+    console.log('prices empty', prices)
+
+    const minutePriceAdded = new Set() //tracks which minutes have been added
+
+    const updateChart = async (price, time) => {
+      console.log('Received live price update:', price, 'at time:', time)
+
+      const currentMinute = time
+      const hasMinute = timestamps.value.includes(currentMinute)
+
+      if (hasMinute && !minutePriceAdded.has(currentMinute)) {
+        // Format the new price point
+        const newPricePoint = { x: time, y: parseFloat(price) }
+
+        // Add to the end of the array to maintain chronological order
+        prices.value = [...prices.value, newPricePoint]
+        minutePriceAdded.add(currentMinute)
+
+        // Update color without triggering chart update
+        const newColor = parseFloat(price) >= store.closingPrice ? '#21ba45' : '#ea4335'
+        if (borderColor.value[0] !== newColor) {
+          borderColor.value = [newColor]
+        }
+
+        console.log('Added new price point:', newPricePoint)
+      } else {
+        console.log(`⏳ Ignoring duplicate update for ${currentMinute}`)
+      }
+    }
+
+    const handleChartUpdate = (chart) => {
+      if (!chart || !prices.value.length) return
+
+      // Only update if color needs to change
+      const currentPrice = prices.value[prices.value.length - 1]?.y
+      const newColor = currentPrice >= store.closingPrice ? '#21ba45' : '#ea4335'
+
+      if (borderColor.value[0] !== newColor) {
+        borderColor.value = [newColor]
+
+        // Update chart options without triggering data updates
+        chart.data.datasets[0].borderColor = borderColor.value
+        chart.data.datasets[0].backgroundColor = borderColor.value
+      }
+
+      // Update x-axis ticks
+      chart.options.scales.x.ticks.callback = function (value) {
+        const xAxis = chart.scales['x']
+        const label = xAxis.getLabelForValue(value)
+        return value % 60 === 0 ? label : ''
+      }
+
+      // Only call update once at the end
+      chart.update('none') // Use 'none' mode to skip animations
+    }
+
+    const initializeChartData = async () => {
+      try {
+        // Fetch initial stock data
+        const stockData = await store.fetchStockInteraday(props.stockSymbol)
+        await store.getStockQuote(props.stockSymbol)
+
+        console.log('📊 Fetched stock data:', {
+          today: stockData.todayData?.length,
+          yesterday: stockData.yesterdayData?.length,
+          dayBeforeYesterday: stockData.dayBeforeYesterdayData?.length,
+          dates: stockData.dates,
+        })
+
+        // Store the data in refs - preserve API data order
+        todayData.value = stockData.todayData || []
+        yesterdayData.value = stockData.yesterdayData || []
+        dayBeforeYesterdayData.value = stockData.dayBeforeYesterdayData || []
+
+        const now = new Date()
+        const dayOfWeek = now.getDay() // 0 is Sunday, 6 is Saturday
+
+        // Log the actual dates we're working with
+        console.log('📅 Working with dates:', {
+          today: stockData.dates?.today,
+          yesterday: stockData.dates?.yesterday,
+          dayBeforeYesterday: stockData.dates?.dayBeforeYesterday,
+          currentDayOfWeek: dayOfWeek,
+        })
+
+        // Helper function to get closing price from data array
+        const getClosingPrice = (data) => {
+          if (!data || data.length === 0) return null
+          return data[data.length - 1]?.y
+        }
+
+        // Determine which data to display and set closing price based on market timing and day of week
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          // Weekend
+          console.log('📅 Weekend: showing most recent data')
+          prices.value = [...todayData.value]
+          const lastClose = getClosingPrice(todayData.value)
+          const previousClose = getClosingPrice(yesterdayData.value)
+          if (lastClose) store.setClosingPrice(lastClose)
+          if (previousClose) store.setPreviousClosingPrice(previousClose)
+          console.log('📅 Weekend:', prices.value)
+        } else if (dayOfWeek === 1 && beforeMarket()) {
+          // Monday before market open
+          console.log('📅 Monday before market: showing Friday data')
+          prices.value = [...yesterdayData.value]
+          const fridayClose = getClosingPrice(yesterdayData.value)
+          const thursdayClose = getClosingPrice(dayBeforeYesterdayData.value)
+          if (fridayClose) store.setClosingPrice(fridayClose)
+          if (thursdayClose) store.setPreviousClosingPrice(thursdayClose)
+        } else if (marketOpen()) {
+          console.log("📈 Market is open, showing today's data")
+          prices.value = [...todayData.value]
+          const yesterdayClose = getClosingPrice(yesterdayData.value)
+          if (yesterdayClose) store.setClosingPrice(yesterdayClose)
+        } else if (beforeMarket()) {
+          console.log("🌅 Pre-market, showing yesterday's data")
+          prices.value = [...yesterdayData.value]
+          const yesterdayClose = getClosingPrice(yesterdayData.value)
+          const dayBeforeClose = getClosingPrice(dayBeforeYesterdayData.value)
+          if (yesterdayClose) store.setClosingPrice(yesterdayClose)
+          if (dayBeforeClose) store.setPreviousClosingPrice(dayBeforeClose)
+        } else if (afterMarket()) {
+          console.log("🌆 After-market, showing today's data")
+          prices.value = [...todayData.value]
+          const todayClose = getClosingPrice(todayData.value)
+          if (todayClose) store.setClosingPrice(todayClose)
+        }
+
+        // Update last updated time
+        lastUpdatedTime.value = prices.value[prices.value.length - 1]?.x || null
+
+        // Set initial chart color
+        if (prices.value.length > 0 && store.closingPrice) {
+          const currentPrice = prices.value[prices.value.length - 1]?.y
+          borderColor.value = [currentPrice >= store.closingPrice ? '#21ba45' : '#ea4335']
+        }
+
+        console.log('Chart initialized with:', {
+          dayOfWeek,
+          marketStatus: marketOpen()
+            ? 'open'
+            : beforeMarket()
+              ? 'pre-market'
+              : afterMarket()
+                ? 'after-market'
+                : 'closed',
+          dataPoints: prices.value.length,
+          closingPrice: store.closingPrice,
+          lastUpdate: lastUpdatedTime.value,
+          displayingDate:
+            stockData.dates?.[
+              prices.value === todayData.value
+                ? 'today'
+                : prices.value === yesterdayData.value
+                  ? 'yesterday'
+                  : 'dayBeforeYesterday'
+            ],
+        })
+      } catch (error) {
+        console.error('❌ Error initializing chart data:', error)
+        prices.value = []
+        lastUpdatedTime.value = null
+      }
+    }
+
+    // Computed property for chart data to reduce reactivity overhead
     const chartData = computed(() => ({
       labels: timestamps.value,
-
       datasets: [
         {
           data: prices.value,
@@ -75,99 +241,45 @@ export default defineComponent({
       ],
     }))
 
-    const options = ref({
+    // Options as a computed property to reduce reactivity overhead
+    const chartOptions = computed(() => ({
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: {
           display: false,
         },
-
         colors: {
           forceOverride: true,
         },
       },
-
       scales: {
         x: {
           ticks: {
             autoSkip: false,
-
             callback: function (value) {
-              const chart = this.chart // This will reference the Chart.js instance
-              const xAxis = chart.scales['x'] // Get the x-axis scale
-              const label = xAxis.getLabelForValue(value) // Get the label for the current tick value
-
-              // If the value corresponds to a full hour, return it formatted, else return an empty string
-              return value % 60 === 0 ? label : ''
+              return value % 60 === 0 ? this.getLabelForValue(value) : ''
             },
           },
-
           grid: {
-            display: false, // Remove X-axis grid lines
+            display: false,
           },
         },
         y: {
           grid: {
-            display: false, // Remove X-axis grid lines
+            display: false,
           },
           display: true,
           beginAtZero: false,
-
           ticks: {},
         },
       },
-    })
+    }))
 
     const { lineChartProps, lineChartRef } = useLineChart({
       chartData,
-      options,
+      options: chartOptions,
     })
-
-    const prices = ref([])
-
-    console.log('prices with hisotry added', prices)
-    console.log('prices empty', prices)
-
-    const minutePriceAdded = new Set() //tracks which minutes have been added
-
-    const updateChart = (price, time) => {
-      console.log('price', price)
-
-      const currentMinute = time
-      const hasMinute = timestamps.value.includes(currentMinute)
-      if (hasMinute && !minutePriceAdded.has(currentMinute)) {
-        prices.value = [{ x: time, y: price }, ...prices.value]
-        minutePriceAdded.add(currentMinute) //Store the minute as processed
-        console.log('Added first price for', currentMinute)
-      } else {
-        console.log(`⏳ Ignoring duplicate update for ${currentMinute}`)
-      }
-    }
-    console.log('get todayy', getToday())
-    console.log('get yesterday', getYesterday())
-
-    const handleChartUpdate = (chart) => {
-      console.log('chart updating', chart)
-
-      console.log('now price xx', prices.value[0].y)
-      console.log('closing price xx', store.closingPrice)
-      if (!chart) return
-
-      borderColor.value = prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
-      borderColor.value = prices.value[0].y >= store.closingPrice ? '#21ba45' : '#ea4335'
-
-      chart.options.scales.x.ticks.callback = function (value) {
-        // console.log('callback chart', chart)
-        const xAxis = chart.scales['x'] // Get the x-axis scale
-        const label = xAxis.getLabelForValue(value) // Get the label for the current tick value
-
-        // If the value corresponds to a full hour, return it formatted, else return an empty string
-        return value % 60 === 0 ? label : ''
-      }
-
-      chart.update() // ✅ Apply the change
-    }
 
     const setupMarketOpenTimer = () => {
       // Clear any existing timer first
@@ -203,73 +315,10 @@ export default defineComponent({
     }
 
     onMounted(async () => {
+      await initializeChartData()
       console.log('📡 Connecting WebSocket...')
       store.connectToWebSocket(props.stockSymbol, updateChart)
-
-      //getting stock history
-      const { yesterdayData: yData, todayData: tData } = await store.fetchStockHistory(
-        props.stockSymbol,
-      )
-
-      console.log('yesterday after fetch', yesterdayData)
-      console.log('todya after fetch', todayData)
-      yesterdayData.value = yData
-      todayData.value = tData
-
-      // Set up market open timer if needed
       setupMarketOpenTimer()
-
-      if (yesterdayData.value.length > 0 && todayData.value.length > 0) {
-        console.log('📊 today history', todayData.value)
-        console.log('📊 yesterday data', yesterdayData.value)
-        //get current time
-        const now = new Date()
-        //define market open and close times
-        const startTime = new Date()
-        startTime.setHours(9, 30, 0, 0) // set start time to 9:00 a.m.
-
-        const endTime = new Date()
-        endTime.setHours(16, 0, 0, 0) // set end time to 4:00 p.m.
-
-        const todayDate = new Date()
-        todayDate.setHours(0, 0, 0, 0) // Ensures no timezone shift
-        console.log('now---------------', now.getTime())
-        console.log('endTime---------------', endTime.getTime())
-        console.log('now now', now.toDateString())
-        console.log('today now', todayDate.toDateString())
-
-        if (now.toDateString() === todayDate.toDateString() && now >= startTime) {
-          console.log("📅 Market is open today, showing today's data.")
-          prices.value = [...todayData.value]
-          lastUpdatedTime.value = todayData.value[0].x // Store last historical timestamp
-
-          if (now.getTime() > endTime.getTime()) {
-            store.closingPrice = yesterdayData.value[0].y
-            store.setClosingPrice(yesterdayData.value[0]?.y) // ✅ Update closing price
-            console.log('closing price from yesterday mounted', store.closingPrice)
-          }
-        } else {
-          console.log(
-            "📅 Market is not open yet or today is a non-trading day, showing yesterday's data.",
-          )
-          prices.value = [...yesterdayData.value]
-          lastUpdatedTime.value = yesterdayData.value[0].x // Store last historical timestamp
-          store.closingPrice = yesterdayData.value[0].y
-          store.setClosingPrice(yesterdayData.value[0]?.y) // ✅ Update closing price
-          console.log('closing price from yesterday mounted', store.closingPrice)
-        }
-      } else if (yesterdayData.value.length > 0) {
-        // Handle case when only yesterday's data is available
-        console.log("📅 Only yesterday's data available, using that")
-        prices.value = [...yesterdayData.value]
-        lastUpdatedTime.value = yesterdayData.value[0].x
-        store.closingPrice = yesterdayData.value[0].y
-        store.setClosingPrice(yesterdayData.value[0]?.y)
-        console.log(
-          'closing price from yesterday mounted (only yesterday data)',
-          store.closingPrice,
-        )
-      }
     })
 
     onUnmounted(() => {
@@ -284,56 +333,12 @@ export default defineComponent({
 
     watch(
       () => props.stockSymbol,
-      async (newSymbol, oldSymbol) => {
-        console.log(`🔄 Stock changed from ${oldSymbol} to ${newSymbol}, reconnecting WebSocket...`)
-
-        // Disconnect old WebSocket
+      async (newSymbol) => {
+        console.log(`🔄 Stock changed to ${newSymbol}, updating chart...`)
         store.disconnectWebSocket()
-
-        // ✅ Fetch new stock history
-        const { yesterdayData, todayData } = await store.fetchStockHistory(newSymbol)
-
-        console.log('yesterday after fetch', yesterdayData)
-        console.log('todya after fetch', todayData)
-
-        // Set up market open timer if needed
+        await initializeChartData()
+        store.connectToWebSocket(newSymbol, updateChart)
         setupMarketOpenTimer()
-
-        // ✅ Update the chart with new stock data
-        const now = new Date()
-        const startTime = new Date()
-        startTime.setHours(9, 30, 0, 0)
-        const endTime = new Date()
-        endTime.setHours(16, 0, 0, 0)
-
-        if (todayData.length > 0) {
-          prices.value = [...todayData] // ✅ Use today's data
-          lastUpdatedTime.value = todayData[0].x
-
-          if (now.getTime() > endTime.getTime()) {
-            store.setClosingPrice(yesterdayData[0]?.y) // ✅ Use last available price
-            console.log('closing price from yesterday watch', store.closingPrice)
-          }
-        } else {
-          prices.value = [...yesterdayData] // ✅ Fallback to yesterday's data
-          lastUpdatedTime.value = yesterdayData[0]?.x || null
-          store.setClosingPrice(yesterdayData[0]?.y) // ✅ Use last available price
-          console.log('closing price from yesterday watch', store.closingPrice)
-        }
-
-        console.log('Updated closing price:', store.closingPrice)
-
-        // ✅ Force Vue to recognize `options.value` update
-        console.log('📡 Chart is updating, applying new tick settings...')
-        options.value = { ...options.value } // ✅ Triggers Vue reactivity
-
-        // ✅ Ensure `ticks.callback` is reapplied
-        options.value.scales.x.ticks.callback = function (val, index) {
-          return index % 12 === 0 ? this.getLabelForValue(val) : ''
-        }
-
-        // ✅ Reconnect WebSocket for the new stock
-        store.connectToWebSocket(props.stockSymbol, updateChart)
       },
     )
 

@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import stocksService from 'src/services/stocks'
-import { useDateUtils } from 'src/composables/useDateUtils'
 import { LocalStorage } from 'quasar'
 import LZString from 'lz-string'
 
@@ -34,6 +33,7 @@ export const useStockStore = defineStore('stockStore', {
       stocksList: parsedStocks,
       stockHistoryYesterday: [],
       stockHistoryToday: [],
+      stockHistoryDayBefore: [],
       watchList: LocalStorage.getItem(STORAGE_KEYS.WATCH_LIST) || [],
       liveData: [],
       selectedStock: LocalStorage.getItem(STORAGE_KEYS.SELECTED_STOCK) || null,
@@ -41,6 +41,7 @@ export const useStockStore = defineStore('stockStore', {
       previousClosingPrice: LocalStorage.getItem(STORAGE_KEYS.PREVIOUS_CLOSING_PRICE) || null,
       modalViewed: LocalStorage.getItem(STORAGE_KEYS.MODAL_VIEWED) || false,
       webSocket: null,
+      lastQuote: null,
     }
   },
 
@@ -140,33 +141,42 @@ export const useStockStore = defineStore('stockStore', {
       }
     },
 
-    async fetchStockHistory(symbol) {
+    async getStockQuote(symbol) {
       try {
-        const response = await stocksService.getStockHistory(symbol, this)
-        if (!response) return { todayData: [], yesterdayData: [] }
+        const response = await stocksService.getStockQuote(symbol)
+        this.lastQuote = response.data
+        return response.data
+      } catch (error) {
+        console.error('❌ Error fetching stock quote:', error)
+        return null
+      }
+    },
 
-        const { getToday, getYesterday, getLastTradingDay, isWeekday } = useDateUtils()
-        const now = new Date()
-        const dayBefore = new Date(now)
-        dayBefore.setDate(now.getDate() - 1)
+    async fetchStockInteraday(symbol) {
+      try {
+        const response = await stocksService.getStockInteraday(symbol)
 
-        const yesterday =
-          isWeekday(now) && isWeekday(dayBefore) ? getYesterday() : getLastTradingDay()
-        const today = isWeekday(now) ? getToday() : getLastTradingDay()
+        // Store the formatted data in state
+        this.stockHistoryToday = this.formatHistoryData(response.todayData || [])
+        this.stockHistoryYesterday = this.formatHistoryData(response.yesterdayData || [])
+        this.stockHistoryDayBefore = this.formatHistoryData(response.dayBeforeYesterdayData || [])
 
-        const yesterdayData = response.filter((data) => data.datetime?.startsWith(yesterday))
-        const todayData = response.filter((data) => data.datetime?.startsWith(today))
-
-        this.stockHistoryYesterday = this.formatHistoryData(yesterdayData)
-        this.stockHistoryToday = this.formatHistoryData(todayData)
+        console.log('🔄 Store Stock today Interaday Data:', this.stockHistoryToday)
+        console.log('🔄 Store Stock yesterday Interaday Data:', this.stockHistoryYesterday)
+        console.log('🔄 Store Stock dayBeforeYesterday Interaday Data:', this.stockHistoryDayBefore)
 
         return {
           todayData: this.stockHistoryToday,
           yesterdayData: this.stockHistoryYesterday,
+          dayBeforeYesterdayData: this.stockHistoryDayBefore,
         }
       } catch (error) {
-        console.error('❌ Error fetching price history:', error)
-        return { todayData: [], yesterdayData: [] }
+        console.error('❌ Error fetching intraday data:', error)
+        return {
+          todayData: [],
+          yesterdayData: [],
+          dayBeforeYesterdayData: [],
+        }
       }
     },
 
@@ -198,16 +208,15 @@ export const useStockStore = defineStore('stockStore', {
 
     // Helper Methods
     formatHistoryData(data) {
-      return (
-        data?.map((entry) => ({
-          x: new Date(entry.datetime.replace(' ', 'T')).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          }),
-          y: parseFloat(entry.close),
-        })) || []
-      )
+      return data.map((item) => ({
+        x: new Date(item.datetime).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        }),
+        y: parseFloat(item.close),
+        timestamp: new Date(item.datetime).getTime(),
+      }))
     },
   },
 })
