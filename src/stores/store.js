@@ -62,6 +62,26 @@ export const useStockStore = defineStore('stockStore', {
         timeZoneName: 'short',
       })
     },
+    effectiveClosingPrice: (state) => {
+      // If we have live data, use the latest price
+      if (state.liveData.length > 0) {
+        return state.liveData[state.liveData.length - 1].price
+      }
+      // If we have today's historical data, use the last price
+      if (state.stockHistoryToday.length > 0) {
+        return state.stockHistoryToday[state.stockHistoryToday.length - 1].y
+      }
+      // Fall back to quote close or stored closing price
+      return state.lastQuote?.close || state.closingPrice
+    },
+    effectivePreviousClosingPrice: (state) => {
+      // If we have yesterday's data, use the last price
+      if (state.stockHistoryYesterday.length > 0) {
+        return state.stockHistoryYesterday[state.stockHistoryYesterday.length - 1].y
+      }
+      // Fall back to quote previous close or stored previous closing price
+      return state.lastQuote?.previousClose || state.previousClosingPrice
+    },
   },
 
   actions: {

@@ -118,13 +118,14 @@ export default defineComponent({
       try {
         // Fetch initial stock data
         const stockData = await store.fetchStockInteraday(props.stockSymbol)
-        await store.getStockQuote(props.stockSymbol)
+        const quoteResponse = await store.getStockQuote(props.stockSymbol)
 
         console.log('📊 Fetched stock data:', {
           today: stockData.todayData?.length,
           yesterday: stockData.yesterdayData?.length,
           dayBeforeYesterday: stockData.dayBeforeYesterdayData?.length,
           dates: stockData.dates,
+          quote: quoteResponse,
         })
 
         // Store the data in refs - preserve API data order
@@ -146,15 +147,21 @@ export default defineComponent({
           return lastEntry ? lastEntry.y : sortedData[0]?.y
         }
 
+        // Get closing prices from quote response if available
+        const quoteClose = quoteResponse?.close ? parseFloat(quoteResponse.close) : null
+        const quotePreviousClose = quoteResponse?.previous_close
+          ? parseFloat(quoteResponse.previous_close)
+          : null
+
         // Log the actual dates and closing prices we're working with
         console.log('📅 Working with dates and prices:', {
           today: {
             date: stockData.dates?.today,
-            close: getClosingPrice(todayData.value),
+            close: quoteClose || getClosingPrice(todayData.value),
           },
           yesterday: {
             date: stockData.dates?.yesterday,
-            close: getClosingPrice(yesterdayData.value),
+            close: quotePreviousClose || getClosingPrice(yesterdayData.value),
           },
           dayBeforeYesterday: {
             date: stockData.dates?.dayBeforeYesterday,
@@ -167,40 +174,67 @@ export default defineComponent({
           // Weekend
           console.log('📅 Weekend: showing most recent data')
           prices.value = [...todayData.value]
-          const lastClose = getClosingPrice(todayData.value)
-          const previousClose = getClosingPrice(yesterdayData.value)
-          if (lastClose) store.setClosingPrice(lastClose)
-          if (previousClose) store.setPreviousClosingPrice(previousClose)
+          if (quoteClose) {
+            store.setClosingPrice(quoteClose)
+            store.setPreviousClosingPrice(quotePreviousClose)
+          } else {
+            const lastClose = getClosingPrice(todayData.value)
+            const previousClose = getClosingPrice(yesterdayData.value)
+            if (lastClose) store.setClosingPrice(lastClose)
+            if (previousClose) store.setPreviousClosingPrice(previousClose)
+          }
         } else if (dayOfWeek === 1 && beforeMarket()) {
           // Monday before market open
           console.log('📅 Monday before market: showing Friday data')
           prices.value = [...yesterdayData.value]
-          const fridayClose = getClosingPrice(yesterdayData.value)
-          const thursdayClose = getClosingPrice(dayBeforeYesterdayData.value)
-          if (fridayClose) store.setClosingPrice(fridayClose)
-          if (thursdayClose) store.setPreviousClosingPrice(thursdayClose)
+          if (quotePreviousClose) {
+            store.setClosingPrice(quotePreviousClose)
+            const thursdayClose = getClosingPrice(dayBeforeYesterdayData.value)
+            if (thursdayClose) store.setPreviousClosingPrice(thursdayClose)
+          } else {
+            const fridayClose = getClosingPrice(yesterdayData.value)
+            const thursdayClose = getClosingPrice(dayBeforeYesterdayData.value)
+            if (fridayClose) store.setClosingPrice(fridayClose)
+            if (thursdayClose) store.setPreviousClosingPrice(thursdayClose)
+          }
         } else if (marketOpen()) {
           console.log("📈 Market is open, showing today's data")
           prices.value = [...todayData.value]
-          const yesterdayClose = getClosingPrice(yesterdayData.value)
-          if (yesterdayClose) {
-            store.setClosingPrice(yesterdayClose)
-            store.setPreviousClosingPrice(yesterdayClose)
+          if (quotePreviousClose) {
+            store.setClosingPrice(quotePreviousClose)
+            store.setPreviousClosingPrice(quotePreviousClose)
+          } else {
+            const yesterdayClose = getClosingPrice(yesterdayData.value)
+            if (yesterdayClose) {
+              store.setClosingPrice(yesterdayClose)
+              store.setPreviousClosingPrice(yesterdayClose)
+            }
           }
         } else if (beforeMarket()) {
           console.log("🌅 Pre-market, showing yesterday's data")
           prices.value = [...yesterdayData.value]
-          const yesterdayClose = getClosingPrice(yesterdayData.value)
-          const dayBeforeClose = getClosingPrice(dayBeforeYesterdayData.value)
-          if (yesterdayClose) store.setClosingPrice(yesterdayClose)
-          if (dayBeforeClose) store.setPreviousClosingPrice(dayBeforeClose)
+          if (quotePreviousClose) {
+            store.setClosingPrice(quotePreviousClose)
+            const dayBeforeClose = getClosingPrice(dayBeforeYesterdayData.value)
+            if (dayBeforeClose) store.setPreviousClosingPrice(dayBeforeClose)
+          } else {
+            const yesterdayClose = getClosingPrice(yesterdayData.value)
+            const dayBeforeClose = getClosingPrice(dayBeforeYesterdayData.value)
+            if (yesterdayClose) store.setClosingPrice(yesterdayClose)
+            if (dayBeforeClose) store.setPreviousClosingPrice(dayBeforeClose)
+          }
         } else if (afterMarket()) {
           console.log("🌆 After-market, showing today's data")
           prices.value = [...todayData.value]
-          const todayClose = getClosingPrice(todayData.value)
-          const yesterdayClose = getClosingPrice(yesterdayData.value)
-          if (todayClose) store.setClosingPrice(todayClose)
-          if (yesterdayClose) store.setPreviousClosingPrice(yesterdayClose)
+          if (quoteClose) {
+            store.setClosingPrice(quoteClose)
+            store.setPreviousClosingPrice(quotePreviousClose)
+          } else {
+            const todayClose = getClosingPrice(todayData.value)
+            const yesterdayClose = getClosingPrice(yesterdayData.value)
+            if (todayClose) store.setClosingPrice(todayClose)
+            if (yesterdayClose) store.setPreviousClosingPrice(yesterdayClose)
+          }
         }
 
         // Update last updated time
@@ -358,11 +392,22 @@ export default defineComponent({
         marketOpenTimer.value = setTimeout(async () => {
           console.log('🕒 Market just opened, fetching new data...')
           const { todayData: newTodayData } = await store.fetchStockHistory(props.stockSymbol)
+          const quoteResponse = await store.getStockQuote(props.stockSymbol)
+
           if (newTodayData.length > 0) {
             prices.value = [...newTodayData]
             lastUpdatedTime.value = newTodayData[0].x
-            store.closingPrice = yesterdayData.value[0].y
-            store.setClosingPrice(yesterdayData.value[0]?.y)
+
+            // Use quote response for closing price if available
+            if (quoteResponse?.previous_close) {
+              const previousClose = parseFloat(quoteResponse.previous_close)
+              store.setClosingPrice(previousClose)
+              store.setPreviousClosingPrice(previousClose)
+            } else {
+              store.setClosingPrice(yesterdayData.value[0]?.y)
+              store.setPreviousClosingPrice(yesterdayData.value[0]?.y)
+            }
+
             console.log('📊 Updated chart with market open data')
           }
         }, timeUntilMarketOpen)

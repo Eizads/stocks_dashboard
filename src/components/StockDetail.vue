@@ -45,7 +45,7 @@
           v-else-if="store.stockHistoryToday.length > 0 || store.stockHistoryYesterday.length > 0"
         >
           <h3 class="text-h4 q-my-sm">
-            {{ Math.round((getCurrentPrice || 0) * 100) / 100 }}
+            {{ Math.round((store.closingPrice || 0) * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
           </h3>
           <p :class="comparePrice > 0 ? 'text-green' : 'text-red'" class="q-my-none">
@@ -132,19 +132,28 @@ export default {
     const route = useRoute()
     const store = useStockStore()
     const liveData = ref([])
-    const { isWeekday, marketOpen, beforeMarket, afterMarket } = useDateUtils()
+    const { isWeekday, marketOpen } = useDateUtils()
     const now = new Date()
 
     const latestStockPrice = computed(() => store.latestStockPrice)
     const latestStockTime = computed(() => store.latestStockTime)
     console.log('stock time ----', latestStockTime.value)
+
+    // Watch for stock changes and update data
     watch(
       () => store.selectedStock,
-      (newSymbol, oldSymbol) => {
-        console.log(`🔄 Stock changed from ${oldSymbol} to ${newSymbol}, reconnecting WebSocket...`)
+      async (newStock, oldStock) => {
+        console.log(
+          `🔄 Stock changed from ${oldStock?.symbol} to ${newStock?.symbol}, updating data...`,
+        )
         store.liveData = []
+        if (newStock?.symbol) {
+          const quoteResponse = await store.getStockQuote(newStock.symbol)
+          console.log('📊 Quote response:', quoteResponse)
+        }
       },
     )
+
     const formattedDate = new Date().toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -157,86 +166,40 @@ export default {
     const comparePrice = computed(() => {
       const now = new Date()
       console.log('⏳ Checking price comparison at:', now.toLocaleTimeString())
-      console.log('📊 Current store values:', {
-        closingPrice: store.closingPrice,
-        previousClosingPrice: store.previousClosingPrice,
-        latestStockPrice: latestStockPrice.value,
-        stockHistoryToday: store.stockHistoryToday?.[0]?.y,
-        stockHistoryYesterday: store.stockHistoryYesterday?.[0]?.y,
-      })
 
-      if (isWeekday(now)) {
-        if (beforeMarket()) {
-          console.log('⏳ Before Market Open')
-          // Use yesterday's closing price compared to day before yesterday's closing
-          return store.closingPrice - store.previousClosingPrice
-        }
-
-        if (marketOpen()) {
-          console.log('📈 Market is OPEN')
-          // During market hours, compare current/latest price to yesterday's closing
-          return latestStockPrice.value
-            ? latestStockPrice.value - store.closingPrice
-            : store.stockHistoryToday?.[0]?.y - store.closingPrice
-        }
-
-        if (afterMarket()) {
-          console.log('📉 Market is CLOSED (After Hours)')
-          // After hours, compare today's closing to yesterday's closing
-          return store.stockHistoryToday?.[0]?.y - store.closingPrice
-        }
+      // Get current price based on market conditions
+      let currentPrice = latestStockPrice.value
+      if (!currentPrice && store.stockHistoryToday.length > 0) {
+        currentPrice = store.stockHistoryToday[store.stockHistoryToday.length - 1].y
+      }
+      if (!currentPrice) {
+        currentPrice = store.lastQuote?.close || store.closingPrice
       }
 
-      console.log("📅 Non-trading day, using last trading day's closing price")
-      const result = store.closingPrice - store.previousClosingPrice
-      console.log('💰 Price comparison result:', result)
-      return result
+      // Get previous price
+      const previousPrice = store.lastQuote?.previousClose || store.previousClosingPrice
+
+      return currentPrice - previousPrice
     })
 
     const percentChange = computed(() => {
       const now = new Date()
       console.log('⏳ Checking percentage change at:', now.toLocaleTimeString())
-      console.log('📊 Current store values:', {
-        closingPrice: store.closingPrice,
-        previousClosingPrice: store.previousClosingPrice,
-        latestStockPrice: latestStockPrice.value,
-        stockHistoryToday: store.stockHistoryToday?.[0]?.y,
-        stockHistoryYesterday: store.stockHistoryYesterday?.[0]?.y,
-      })
 
-      // Helper function to calculate percentage change
-      const calculatePercentChange = (current, base) => {
-        if (!current || !base || base === 0) {
-          console.log('⚠️ Invalid values for percentage calculation:', { current, base })
-          return 0
-        }
-        const result = ((current - base) / base) * 100
-        console.log('📊 Percentage calculation:', { current, base, result })
-        return result
+      // Get current price based on market conditions
+      let currentPrice = latestStockPrice.value
+      if (!currentPrice && store.stockHistoryToday.length > 0) {
+        currentPrice = store.stockHistoryToday[store.stockHistoryToday.length - 1].y
+      }
+      if (!currentPrice) {
+        currentPrice = store.lastQuote?.close || store.closingPrice
       }
 
-      if (isWeekday(now)) {
-        if (beforeMarket()) {
-          console.log('⏳ Before Market Open')
-          return calculatePercentChange(store.closingPrice, store.previousClosingPrice)
-        }
+      // Get previous price
+      const previousPrice = store.lastQuote?.previousClose || store.previousClosingPrice
 
-        if (marketOpen()) {
-          console.log('📈 Market is OPEN')
-          const currentPrice = latestStockPrice.value || store.stockHistoryToday?.[0]?.y
-          return calculatePercentChange(currentPrice, store.closingPrice)
-        }
-
-        if (afterMarket()) {
-          console.log('📉 Market is CLOSED (After Hours)')
-          return calculatePercentChange(store.stockHistoryToday?.[0]?.y, store.closingPrice)
-        }
-      }
-
-      console.log("📅 Non-trading day, using last trading day's closing price")
-      const result = calculatePercentChange(store.closingPrice, store.previousClosingPrice)
-      console.log('💰 Percentage change result:', result)
-      return result
+      if (!previousPrice || previousPrice === 0) return 0
+      return ((currentPrice - previousPrice) / previousPrice) * 100
     })
     const isInWatchlist = computed(() => store.isInWatchList(store.selectedStock))
 
