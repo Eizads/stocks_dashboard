@@ -18,23 +18,51 @@ const getStockInteraday = async (symbol) => {
     const response = await axios.get(`${baseUrl}/time_series`, {
       params: {
         symbol,
-        interval: '5min',
-        outputsize: '234',
+        interval: '1min',
+        outputsize: '1170',
         apikey: apiKey,
       },
     })
 
     const data = response.data?.values || []
+    console.log('Raw data received:', data.length, 'entries')
 
-    // Group data by dates
+    // Group data by dates and format entries
     const groupedData = data.reduce((acc, entry) => {
       const date = entry.datetime.split(' ')[0]
-      if (!acc[date]) {
-        acc[date] = []
+      const time = entry.datetime.split(' ')[1]
+
+      // Only include data points during market hours (9:30 AM - 4:00 PM)
+      const [hours, minutes] = time.split(':').map(Number)
+      const isMarketHours =
+        (hours === 9 && minutes >= 30) ||
+        (hours > 9 && hours < 16) ||
+        (hours === 16 && minutes === 0)
+
+      if (isMarketHours) {
+        if (!acc[date]) {
+          acc[date] = []
+        }
+
+        // Format the entry with x (time) and y (price) for chart compatibility
+        acc[date].push({
+          x: new Date(entry.datetime).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          }),
+          y: parseFloat(entry.close),
+          datetime: entry.datetime,
+          volume: entry.volume,
+        })
       }
-      acc[date].push(entry)
       return acc
     }, {})
+
+    // Sort entries within each date by datetime
+    Object.keys(groupedData).forEach((date) => {
+      groupedData[date].sort((a, b) => new Date(a.datetime) - new Date(b.datetime))
+    })
 
     // Sort dates in descending order
     const sortedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new Date(a))

@@ -1,13 +1,16 @@
 <template>
   <div class="containr">
-    <div class="row justify-center items-center">
+    <!-- Error message -->
+    <div
+      class="row justify-center items-center"
+      v-if="!latestStockPrice && !afterHours && !store.stockHistoryToday.length"
+    >
       <div class="col-12">
         <div
-          v-if="!latestStockPrice && !afterHours && !store.stockHistoryToday.length"
-          class="rounded-borders bg-red-3 q-pa-lg q-ma-lg"
+          class="rounded-borders bg-red-3 q-pa-md q-ma-md"
           style="border-radius: 1rem; border: 3px solid #ef534f"
         >
-          <p class="q-mb-none q-pb-none">
+          <p class="q-my-none">
             {{
               `The API doesn't provide live data for ${store.selectedStock.name} Please select Apple stock, symbol: AAPL if you'd like to see live data functionality.`
             }}
@@ -16,27 +19,25 @@
       </div>
     </div>
 
-    <div class="row justify-start items-start q-mx-xl q-pt-xl">
+    <!-- Header section -->
+    <div class="row justify-start items-start q-mx-md q-mt-md q-pt-lg">
       <div class="col-12 col-sm-9">
         <h1 class="text-h5 text-bold q-my-none">{{ store.selectedStock.name }}</h1>
-
-        <h2 class="q-my-none q-py-none" style="font-size: 1rem; font-weight: normal">
+        <h2 class="q-my-none" style="font-size: 1rem; font-weight: normal">
           {{ store.selectedStock.exchange }}: {{ store.selectedStock.symbol }}
         </h2>
 
         <!-- Live data display -->
         <div v-if="latestStockPrice && latestStockTime">
-          <h3 class="text-h4 q-my-sm">
+          <h3 class="text-h4">
             {{ Math.round(latestStockPrice * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
           </h3>
-          <p :class="comparePrice > 0 ? 'text-green' : 'text-red'">
+          <p :class="comparePrice > 0 ? 'text-green' : 'text-red'" class="q-my-none">
             {{ Math.round(comparePrice * 100) / 100 }}
             {{ `(${Math.round(percentChange * 100) / 100}%)` }}
           </p>
-          <p class="text-grey-7">
-            {{ latestStockTime }}
-          </p>
+          <p class="text-grey-7 q-mt-xs q-mb-none">{{ latestStockTime }}</p>
         </div>
 
         <!-- Historical data display -->
@@ -47,22 +48,21 @@
             {{ Math.round((getCurrentPrice || 0) * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
           </h3>
-          <p :class="comparePrice > 0 ? 'text-green' : 'text-red'">
+          <p :class="comparePrice > 0 ? 'text-green' : 'text-red'" class="q-my-none">
             {{ Math.round(comparePrice * 100) / 100 }}
             {{ `(${Math.round(percentChange * 100) / 100}%)` }}
           </p>
-          <p class="text-grey-7">
-            {{ formattedDate }}
-          </p>
+          <p class="text-grey-7 q-mt-xs q-mb-none">{{ formattedDate }}</p>
         </div>
       </div>
 
+      <!-- Follow button -->
       <div class="col-12 col-sm-3">
         <div :class="q.screen.gt.sm ? 'flex justify-center' : 'flex justify-start'">
           <q-btn
             class="bg-blue text-white text-center"
             size="md"
-            padding="md lg"
+            padding="sm lg"
             style="min-width: 150px"
             dense
             rounded
@@ -72,8 +72,7 @@
             <q-icon
               :name="isInWatchlist ? 'bi-check' : 'bi-plus'"
               size="24px"
-              :class="isInWatchlist ? 'text-white' : 'text-white'"
-              class="relative"
+              class="relative text-white"
             >
             </q-icon>
           </q-btn>
@@ -81,9 +80,36 @@
       </div>
     </div>
 
-    <div class="row justify-center items-center">
-      <div class="col-12 q-px-xl">
+    <!-- Chart section -->
+    <div class="row justify-start items-center q-mt-sm">
+      <div class="col-12 q-px-md">
         <StockChart :stockExchange="route.params.exchange" :stockSymbol="route.params.symbol" />
+      </div>
+    </div>
+
+    <!-- Price Statistics -->
+    <div class="row justify-center items-center q-mt-lg q-mb-md">
+      <div class="col-12 q-px-md">
+        <div class="stats-container q-pa-sm">
+          <div class="row justify-between q-gutter-sm">
+            <div class="col price-stat rounded-borders">
+              <div class="text-grey text-caption">Open</div>
+              <div class="text-weight-bold">${{ formatPrice(getDayStats.open) }}</div>
+            </div>
+            <div class="col price-stat rounded-borders">
+              <div class="text-grey text-caption">High</div>
+              <div class="text-weight-bold text-green">${{ formatPrice(getDayStats.high) }}</div>
+            </div>
+            <div class="col price-stat rounded-borders">
+              <div class="text-grey text-caption">Low</div>
+              <div class="text-weight-bold text-red">${{ formatPrice(getDayStats.low) }}</div>
+            </div>
+            <div class="col price-stat rounded-borders">
+              <div class="text-grey text-caption">Prev Close</div>
+              <div class="text-weight-bold">${{ formatPrice(store.previousClosingPrice) }}</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -239,6 +265,24 @@ export default {
       return 0
     })
 
+    const formatPrice = (price) => {
+      return price ? price.toFixed(2) : '--.--'
+    }
+
+    const getDayStats = computed(() => {
+      const currentData = marketOpen() ? store.stockHistoryToday : store.stockHistoryYesterday
+      if (!currentData || currentData.length === 0) return { open: null, high: null, low: null }
+
+      const prices = currentData.map((point) => point.y)
+      const marketOpenTime = '9:30 AM'
+
+      return {
+        open: currentData.find((point) => point.x === marketOpenTime)?.y || prices[0],
+        high: Math.max(...prices),
+        low: Math.min(...prices),
+      }
+    })
+
     return {
       route,
       store,
@@ -256,9 +300,47 @@ export default {
       marketOpen,
       getCurrentPrice,
       q,
+      getDayStats,
+      formatPrice,
     }
   },
 }
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.stats-container {
+  background: #fff;
+  border-radius: 8px;
+}
+
+.price-stat {
+  text-align: center;
+  padding: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+
+  .text-caption {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+  }
+  .text-weight-bold {
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+}
+
+.text-green {
+  color: #21ba45;
+}
+
+.text-red {
+  color: #ea4335;
+}
+</style>

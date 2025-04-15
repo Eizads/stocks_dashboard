@@ -156,19 +156,22 @@ export const useStockStore = defineStore('stockStore', {
       try {
         const response = await stocksService.getStockInteraday(symbol)
 
-        // Store the formatted data in state
-        this.stockHistoryToday = this.formatHistoryData(response.todayData || [])
-        this.stockHistoryYesterday = this.formatHistoryData(response.yesterdayData || [])
-        this.stockHistoryDayBefore = this.formatHistoryData(response.dayBeforeYesterdayData || [])
+        // Store the data directly since it's already formatted in the service
+        this.stockHistoryToday = response.todayData || []
+        this.stockHistoryYesterday = response.yesterdayData || []
+        this.stockHistoryDayBefore = response.dayBeforeYesterdayData || []
 
-        console.log('🔄 Store Stock today Interaday Data:', this.stockHistoryToday)
-        console.log('🔄 Store Stock yesterday Interaday Data:', this.stockHistoryYesterday)
-        console.log('🔄 Store Stock dayBeforeYesterday Interaday Data:', this.stockHistoryDayBefore)
+        console.log('📊 Intraday Data Stats:', {
+          today: `${this.stockHistoryToday.length} entries`,
+          yesterday: `${this.stockHistoryYesterday.length} entries`,
+          dayBefore: `${this.stockHistoryDayBefore.length} entries`,
+        })
 
         return {
           todayData: this.stockHistoryToday,
           yesterdayData: this.stockHistoryYesterday,
           dayBeforeYesterdayData: this.stockHistoryDayBefore,
+          dates: response.dates,
         }
       } catch (error) {
         console.error('❌ Error fetching intraday data:', error)
@@ -176,6 +179,7 @@ export const useStockStore = defineStore('stockStore', {
           todayData: [],
           yesterdayData: [],
           dayBeforeYesterdayData: [],
+          dates: null,
         }
       }
     },
@@ -204,19 +208,6 @@ export const useStockStore = defineStore('stockStore', {
 
     isInWatchList(stock) {
       return this.watchList.some((s) => s.exchange === stock.exchange && s.symbol === stock.symbol)
-    },
-
-    // Helper Methods
-    formatHistoryData(data) {
-      return data.map((item) => ({
-        x: new Date(item.datetime).toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        }),
-        y: parseFloat(item.close),
-        timestamp: new Date(item.datetime).getTime(),
-      }))
     },
   },
 })
