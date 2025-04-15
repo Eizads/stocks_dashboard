@@ -20,7 +20,7 @@
     </div>
 
     <!-- Header section -->
-    <div class="row justify-start items-start q-mx-md q-mt-md q-pt-lg">
+    <div class="row justify-start items-start q-mx-md q-pt-lg">
       <div class="col-12 col-sm-9">
         <h1 class="text-h5 text-bold q-my-none">{{ store.selectedStock.name }}</h1>
         <h2 class="q-my-none" style="font-size: 1rem; font-weight: normal">
@@ -29,7 +29,7 @@
 
         <!-- Live data display -->
         <div v-if="latestStockPrice && latestStockTime">
-          <h3 class="text-h4">
+          <h3 class="text-h4 q-my-none">
             {{ Math.round(latestStockPrice * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
           </h3>
@@ -88,7 +88,7 @@
     </div>
 
     <!-- Price Statistics -->
-    <div class="row justify-center items-center q-mt-lg q-mb-md">
+    <div class="row justify-center items-center q-my-lg q-mb-md">
       <div class="col-12 q-px-md">
         <div class="stats-container q-pa-sm">
           <div class="row justify-between q-gutter-sm">
