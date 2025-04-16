@@ -212,16 +212,11 @@ export default defineComponent({
           }
         } else if (beforeMarket()) {
           console.log("🌅 Pre-market, showing yesterday's data")
-          prices.value = [...yesterdayData.value]
-          if (quotePreviousClose) {
-            store.setClosingPrice(quotePreviousClose)
-            const dayBeforeClose = getClosingPrice(dayBeforeYesterdayData.value)
-            if (dayBeforeClose) store.setPreviousClosingPrice(dayBeforeClose)
-          } else {
-            const yesterdayClose = getClosingPrice(yesterdayData.value)
-            const dayBeforeClose = getClosingPrice(dayBeforeYesterdayData.value)
-            if (yesterdayClose) store.setClosingPrice(yesterdayClose)
-            if (dayBeforeClose) store.setPreviousClosingPrice(dayBeforeClose)
+          prices.value = [...todayData.value]
+          if (quoteClose) {
+            console.log('before market quoteClose', quoteClose)
+            store.closingPrice = quoteClose
+            store.setClosingPrice(quoteClose)
           }
         } else if (afterMarket()) {
           console.log("🌆 After-market, showing today's data")
