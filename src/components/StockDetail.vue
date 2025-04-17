@@ -28,7 +28,8 @@
         </h2>
 
         <!-- Live data display -->
-        <div v-if="latestStockPrice && latestStockTime">
+
+        <div v-if="marketOpen() && latestStockPrice && latestStockTime">
           <h3 class="text-h4 q-my-none">
             {{ Math.round(latestStockPrice * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
@@ -39,10 +40,28 @@
           </p>
           <p class="text-grey-7 q-mt-xs q-mb-none">{{ latestStockTime }}</p>
         </div>
+        <div v-if="marketOpen() && !latestStockPrice && store.stockHistoryToday.length > 0">
+          <h3 class="text-h4 q-my-none">
+            {{
+              Math.round(store.stockHistoryToday[store.stockHistoryToday.length - 1].y * 100) / 100
+            }}
+            <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
+          </h3>
+          <p :class="comparePrice > 0 ? 'text-green' : 'text-red'" class="q-my-none">
+            {{ Math.round(comparePrice * 100) / 100 }}
+            {{ `(${Math.round(percentChange * 100) / 100}%)` }}
+          </p>
+          <p class="text-grey-7 q-mt-xs q-mb-none">
+            {{ store.stockHistoryToday[store.stockHistoryToday.length - 1].x }}
+          </p>
+        </div>
 
         <!-- Historical data display -->
         <div
-          v-else-if="store.stockHistoryToday.length > 0 || store.stockHistoryYesterday.length > 0"
+          v-else-if="
+            !marketOpen() &&
+            (store.stockHistoryToday.length > 0 || store.stockHistoryYesterday.length > 0)
+          "
         >
           <h3 class="text-h4 q-my-sm">
             {{ Math.round((store.closingPrice || 0) * 100) / 100 }}
