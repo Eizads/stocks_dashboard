@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   CLOSING_PRICE: 'closingPrice',
   PREVIOUS_CLOSING_PRICE: 'previousClosingPrice',
   MODAL_VIEWED: 'modalViewed',
+  QUOTE_CACHE: 'quoteCache',
 }
 
 const MAX_LIVE_DATA_POINTS = 10
@@ -42,6 +43,8 @@ export const useStockStore = defineStore('stockStore', {
       modalViewed: LocalStorage.getItem(STORAGE_KEYS.MODAL_VIEWED) || false,
       webSocket: null,
       lastQuote: null,
+      stockQuote: null,
+      quoteCache: LocalStorage.getItem(STORAGE_KEYS.QUOTE_CACHE) || {},
     }
   },
 
@@ -62,26 +65,6 @@ export const useStockStore = defineStore('stockStore', {
         timeZoneName: 'short',
       })
     },
-    effectiveClosingPrice: (state) => {
-      // If we have live data, use the latest price
-      if (state.liveData.length > 0) {
-        return state.liveData[state.liveData.length - 1].price
-      }
-      // If we have today's historical data, use the last price
-      if (state.stockHistoryToday.length > 0) {
-        return state.stockHistoryToday[state.stockHistoryToday.length - 1].y
-      }
-      // Fall back to quote close or stored closing price
-      return state.lastQuote?.close || state.closingPrice
-    },
-    effectivePreviousClosingPrice: (state) => {
-      // If we have yesterday's data, use the last price
-      if (state.stockHistoryYesterday.length > 0) {
-        return state.stockHistoryYesterday[state.stockHistoryYesterday.length - 1].y
-      }
-      // Fall back to quote previous close or stored previous closing price
-      return state.lastQuote?.previousClose || state.previousClosingPrice
-    },
   },
 
   actions: {
@@ -92,13 +75,13 @@ export const useStockStore = defineStore('stockStore', {
     },
 
     setClosingPrice(price) {
-      this.closingPrice = price
-      LocalStorage.set(STORAGE_KEYS.CLOSING_PRICE, price)
+      this.closingPrice = price !== null && price !== undefined ? Number(price) : null
+      LocalStorage.set(STORAGE_KEYS.CLOSING_PRICE, this.closingPrice)
     },
 
     setPreviousClosingPrice(price) {
-      this.previousClosingPrice = price
-      LocalStorage.set(STORAGE_KEYS.PREVIOUS_CLOSING_PRICE, price)
+      this.previousClosingPrice = price !== null && price !== undefined ? Number(price) : null
+      LocalStorage.set(STORAGE_KEYS.PREVIOUS_CLOSING_PRICE, this.previousClosingPrice)
     },
 
     // WebSocket Actions
@@ -161,46 +144,114 @@ export const useStockStore = defineStore('stockStore', {
       }
     },
 
-    async getStockQuote(symbol) {
+    async fetchStockQuote(symbol) {
       try {
+        const cachedData = this.quoteCache[symbol]
+
+        // Check if we have cached data
+        if (cachedData?.data) {
+          console.log('📦 Using cached quote data for', symbol)
+          this.stockQuote = cachedData.data
+
+          // Update store values from cache
+          const currentClose = cachedData.data?.close ? Number(cachedData.data.close) : null
+          const previousClose = cachedData.data?.previous_close
+            ? Number(cachedData.data.previous_close)
+            : null
+
+          if (!isNaN(currentClose)) this.closingPrice = currentClose
+          if (!isNaN(previousClose)) this.previousClosingPrice = previousClose
+
+          return cachedData.data
+        }
+
+        // If no cache, make API call
+        console.log('🔄 Fetching fresh quote data for', symbol)
         const response = await stocksService.getStockQuote(symbol)
-        this.lastQuote = response.data
-        return response.data
+        if (!response) return null
+
+        // Update cache with new data
+        this.quoteCache = {
+          ...this.quoteCache,
+          [symbol]: {
+            data: response,
+            timestamp: Date.now(), // Keep timestamp for reference, even though we're not using it for expiration
+          },
+        }
+        LocalStorage.set(STORAGE_KEYS.QUOTE_CACHE, this.quoteCache)
+
+        // Store the quote response
+        this.stockQuote = response
+
+        // Update closing prices from quote response
+        const currentClose = response?.close ? Number(response.close) : null
+        const previousClose = response?.previous_close ? Number(response.previous_close) : null
+
+        if (!isNaN(currentClose)) {
+          this.closingPrice = currentClose
+          LocalStorage.set(STORAGE_KEYS.CLOSING_PRICE, currentClose)
+        }
+
+        if (!isNaN(previousClose)) {
+          this.previousClosingPrice = previousClose
+          LocalStorage.set(STORAGE_KEYS.PREVIOUS_CLOSING_PRICE, previousClose)
+        }
+
+        console.log('Quote response processed:', {
+          currentClose,
+          previousClose,
+          rawResponse: response,
+        })
+
+        return response
       } catch (error) {
         console.error('❌ Error fetching stock quote:', error)
+        this.stockQuote = null
         return null
       }
     },
 
-    async fetchStockInteraday(symbol) {
+    async fetchLatestTradingDay(symbol) {
       try {
-        const response = await stocksService.getStockInteraday(symbol)
+        const response = await stocksService.getLatestTradingDay(symbol)
+        console.log('latest trading day response from store', response)
 
-        // Store the data directly since it's already formatted in the service
-        this.stockHistoryToday = response.todayData || []
-        this.stockHistoryYesterday = response.yesterdayData || []
-        this.stockHistoryDayBefore = response.dayBeforeYesterdayData || []
+        // Format the data for the chart
+        const formattedData = response.map((dataPoint) => ({
+          x: new Date(dataPoint.datetime).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          }),
+          y: parseFloat(dataPoint.close),
+        }))
 
-        console.log('📊 Intraday Data Stats:', {
-          today: `${this.stockHistoryToday.length} entries`,
-          yesterday: `${this.stockHistoryYesterday.length} entries`,
-          dayBefore: `${this.stockHistoryDayBefore.length} entries`,
-        })
+        // Store the data in stockHistoryToday
+        this.stockHistoryToday = formattedData
 
-        return {
-          todayData: this.stockHistoryToday,
-          yesterdayData: this.stockHistoryYesterday,
-          dayBeforeYesterdayData: this.stockHistoryDayBefore,
-          dates: response.dates,
+        // Only update closing price if we don't have it from quote
+        if (formattedData.length > 0 && !this.closingPrice) {
+          const lastPrice = formattedData[formattedData.length - 1].y
+          this.setClosingPrice(lastPrice)
         }
+
+        console.log('formattedData from store', formattedData)
+
+        return formattedData
       } catch (error) {
-        console.error('❌ Error fetching intraday data:', error)
-        return {
-          todayData: [],
-          yesterdayData: [],
-          dayBeforeYesterdayData: [],
-          dates: null,
-        }
+        console.error('❌ Error fetching latest trading day data:', error)
+        return []
+      }
+    },
+
+    async fetchMarketStatus(exchange) {
+      try {
+        const response = await stocksService.getMarketStatus(exchange)
+        console.log('market status response from store', response)
+        return response
+      } catch (error) {
+        console.error('❌ Error fetching market status:', error)
+        return null
       }
     },
 

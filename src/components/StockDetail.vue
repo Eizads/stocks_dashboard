@@ -26,10 +26,10 @@
         <h2 class="q-my-none" style="font-size: 1rem; font-weight: normal">
           {{ store.selectedStock.exchange }}: {{ store.selectedStock.symbol }}
         </h2>
-
+        {{ store.stockQuote }}
         <!-- Live data display -->
 
-        <div v-if="marketOpen() && latestStockPrice && latestStockTime">
+        <!-- <div v-if="marketOpen() && latestStockPrice && latestStockTime">
           <h3 class="text-h4 q-my-none">
             {{ Math.round(latestStockPrice * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
@@ -54,22 +54,17 @@
           <p class="text-grey-7 q-mt-xs q-mb-none">
             {{ store.stockHistoryToday[store.stockHistoryToday.length - 1].x }}
           </p>
-        </div>
+        </div> -->
 
         <!-- Historical data display -->
-        <div
-          v-else-if="
-            !marketOpen() &&
-            (store.stockHistoryToday.length > 0 || store.stockHistoryYesterday.length > 0)
-          "
-        >
+        <div>
           <h3 class="text-h4 q-my-sm">
             {{ Math.round((store.closingPrice || 0) * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
           </h3>
           <p :class="comparePrice > 0 ? 'text-green' : 'text-red'" class="q-my-none">
-            {{ Math.round(comparePrice * 100) / 100 }}
-            {{ `(${Math.round(percentChange * 100) / 100}%)` }}
+            {{ Math.round(store.stockQuote?.change * 100) / 100 || 0 }}
+            {{ `(${Math.round(store.stockQuote?.percent_change * 100) / 100 || 0}%)` }}
           </p>
           <p class="text-grey-7 q-mt-xs q-mb-none">{{ formattedDate }}</p>
         </div>
@@ -113,19 +108,31 @@
           <div class="row justify-between q-gutter-sm">
             <div class="col price-stat rounded-borders">
               <div class="text-grey text-caption">Open</div>
-              <div class="text-weight-bold">${{ formatPrice(getDayStats.open) }}</div>
+              <div class="text-weight-bold">
+                ${{ Math.round(store.stockQuote?.open * 100) / 100 }}
+              </div>
             </div>
             <div class="col price-stat rounded-borders">
               <div class="text-grey text-caption">High</div>
-              <div class="text-weight-bold text-green">${{ formatPrice(getDayStats.high) }}</div>
+              <div class="text-weight-bold text-green">
+                ${{ Math.round(store.stockQuote?.high * 100) / 100 }}
+              </div>
             </div>
             <div class="col price-stat rounded-borders">
               <div class="text-grey text-caption">Low</div>
-              <div class="text-weight-bold text-red">${{ formatPrice(getDayStats.low) }}</div>
+              <div class="text-weight-bold text-red">
+                ${{ Math.round(store.stockQuote?.low * 100) / 100 }}
+              </div>
             </div>
             <div class="col price-stat rounded-borders">
               <div class="text-grey text-caption">Prev Close</div>
-              <div class="text-weight-bold">${{ formatPrice(store.previousClosingPrice) }}</div>
+              <div class="text-weight-bold">
+                ${{
+                  store.previousClosingPrice
+                    ? Number(store.previousClosingPrice).toFixed(2)
+                    : '--.--'
+                }}
+              </div>
             </div>
           </div>
         </div>
@@ -167,7 +174,8 @@ export default {
         )
         store.liveData = []
         if (newStock?.symbol) {
-          const quoteResponse = await store.getStockQuote(newStock.symbol)
+          await store.fetchLatestTradingDay(newStock.symbol)
+          const quoteResponse = await store.fetchStockQuote(newStock.symbol)
           console.log('📊 Quote response:', quoteResponse)
         }
       },
@@ -192,18 +200,19 @@ export default {
         currentPrice = store.stockHistoryToday[store.stockHistoryToday.length - 1].y
       }
       if (!currentPrice) {
-        currentPrice = store.lastQuote?.close || store.closingPrice
+        currentPrice = store.closingPrice
       }
 
-      // Get previous price
-      const previousPrice = store.lastQuote?.previousClose || store.previousClosingPrice
+      // Get previous closing price from store
+      const previousPrice = store.previousClosingPrice
 
-      return currentPrice - previousPrice
+      // Calculate the difference
+      return currentPrice && previousPrice ? currentPrice - previousPrice : 0
     })
 
     const percentChange = computed(() => {
       const now = new Date()
-      console.log('⏳ Checking percentage change at:', now.toLocaleTimeString())
+      console.log('⏳ Calculating percent change at:', now.toLocaleTimeString())
 
       // Get current price based on market conditions
       let currentPrice = latestStockPrice.value
@@ -211,14 +220,16 @@ export default {
         currentPrice = store.stockHistoryToday[store.stockHistoryToday.length - 1].y
       }
       if (!currentPrice) {
-        currentPrice = store.lastQuote?.close || store.closingPrice
+        currentPrice = store.closingPrice
       }
 
-      // Get previous price
-      const previousPrice = store.lastQuote?.previousClose || store.previousClosingPrice
+      // Get previous closing price from store
+      const previousPrice = store.previousClosingPrice
 
-      if (!previousPrice || previousPrice === 0) return 0
-      return ((currentPrice - previousPrice) / previousPrice) * 100
+      // Calculate the percent change
+      return currentPrice && previousPrice
+        ? ((currentPrice - previousPrice) / previousPrice) * 100
+        : 0
     })
     const isInWatchlist = computed(() => store.isInWatchList(store.selectedStock))
 
@@ -248,20 +259,37 @@ export default {
     })
 
     const formatPrice = (price) => {
-      return price ? price.toFixed(2) : '--.--'
+      if (price === null || price === undefined || isNaN(Number(price))) {
+        return '--.--'
+      }
+      return Number(price).toFixed(2)
     }
 
     const getDayStats = computed(() => {
+      // Get quote data from store
+      const quoteData = store.stockQuote
+
+      // If we have quote data, use it
+      if (quoteData) {
+        return {
+          open: Number(quoteData.open),
+          high: Number(quoteData.high),
+          low: Number(quoteData.low),
+        }
+      }
+
+      // Fallback to historical data if quote is not available
       const currentData = marketOpen() ? store.stockHistoryToday : store.stockHistoryYesterday
       if (!currentData || currentData.length === 0) return { open: null, high: null, low: null }
 
-      const prices = currentData.map((point) => point.y)
+      const prices = currentData.map((point) => Number(point.y))
       const marketOpenTime = '9:30 AM'
 
+      const openPrice = currentData.find((point) => point.x === marketOpenTime)
       return {
-        open: currentData.find((point) => point.x === marketOpenTime)?.y || prices[0],
-        high: Math.max(...prices),
-        low: Math.min(...prices),
+        open: openPrice ? Number(openPrice.y) : Number(prices[0]),
+        high: prices.length > 0 ? Math.max(...prices) : null,
+        low: prices.length > 0 ? Math.min(...prices) : null,
       }
     })
 

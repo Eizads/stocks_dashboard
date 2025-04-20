@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useDateUtils } from 'src/composables/useDateUtils'
+// import { useDateUtils } from 'src/composables/useDateUtils'
 
 const apiKey = import.meta.env.VITE_TWELVE_DATA_API_KEY
 const baseUrl = 'https://api.twelvedata.com'
@@ -10,254 +10,56 @@ const getStocksList = () => {
   return axios.get(`${baseUrl}/stocks`)
 }
 
-const getStockQuote = (symbol) => {
-  return axios.get(`${baseUrl}/quote?symbol=${symbol}&apikey=${apiKey}`)
+const getStockQuote = async (symbol) => {
+  try {
+    const response = await axios.get(`${baseUrl}/quote?symbol=${symbol}&apikey=${apiKey}`)
+    console.log('stock quote response', response.data)
+    return response.data
+  } catch (error) {
+    console.error('❌ Error fetching stock quote:', error)
+    if (error.response) {
+      console.error('❌ API Error response:', error.response.data)
+    }
+    return null
+  }
 }
-const getStockInteraday = async (symbol) => {
+
+const getLatestTradingDay = async (symbol) => {
   try {
     const response = await axios.get(`${baseUrl}/time_series`, {
       params: {
         symbol,
         interval: '1min',
-        outputsize: '1170',
+        outputsize: '390',
         apikey: apiKey,
       },
     })
 
     const data = response.data?.values || []
     console.log('Raw data received:', data.length, 'entries')
+    console.log('raw data', data)
 
-    // Group data by dates and format entries
-    const groupedData = data.reduce((acc, entry) => {
-      const date = entry.datetime.split(' ')[0]
-      const time = entry.datetime.split(' ')[1]
-
-      // Only include data points during market hours (9:30 AM - 4:00 PM)
-      const [hours, minutes] = time.split(':').map(Number)
-      const isMarketHours =
-        (hours === 9 && minutes >= 30) ||
-        (hours > 9 && hours < 16) ||
-        (hours === 16 && minutes === 0)
-
-      if (isMarketHours) {
-        if (!acc[date]) {
-          acc[date] = []
-        }
-
-        // Format the entry with x (time) and y (price) for chart compatibility
-        acc[date].push({
-          x: new Date(entry.datetime).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          }),
-          y: parseFloat(entry.close),
-          datetime: entry.datetime,
-          volume: entry.volume,
-        })
-      }
-      return acc
-    }, {})
-
-    // Sort entries within each date by datetime
-    Object.keys(groupedData).forEach((date) => {
-      groupedData[date].sort((a, b) => new Date(a.datetime) - new Date(b.datetime))
-    })
-
-    // Sort dates in descending order
-    const sortedDates = Object.keys(groupedData).sort((a, b) => new Date(b) - new Date(a))
-
-    // Get the three most recent dates
-    const [mostRecent, secondMostRecent, thirdMostRecent] = sortedDates
-
-    console.log('📅 Dates in response:', {
-      mostRecent,
-      secondMostRecent,
-      thirdMostRecent,
-      totalDates: sortedDates.length,
-    })
-
-    console.log('todayData', groupedData[mostRecent])
-    console.log('yesterdayData', groupedData[secondMostRecent])
-    console.log('dayBeforeYesterdayData', groupedData[thirdMostRecent])
-    // Return data organized by relative days
-    return {
-      todayData: groupedData[mostRecent] || [],
-      yesterdayData: groupedData[secondMostRecent] || [],
-      dayBeforeYesterdayData: groupedData[thirdMostRecent] || [],
-      dates: {
-        today: mostRecent,
-        yesterday: secondMostRecent,
-        dayBeforeYesterday: thirdMostRecent,
-      },
-      allData: data,
-    }
+    return data
   } catch (error) {
     console.error('❌ Error fetching intraday data:', error)
-    return {
-      todayData: [],
-      yesterdayData: [],
-      dayBeforeYesterdayData: [],
-      dates: {
-        today: null,
-        yesterday: null,
-        dayBeforeYesterday: null,
-      },
-      allData: [],
-    }
+    return []
   }
 }
-
-const getClosingPrice = (data) => {
-  if (!data || data.length === 0) return null
-  const sortedData = [...data].sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
-  return parseFloat(sortedData[0].close)
-}
-
-const getStockHistory = async (symbol, store) => {
-  const {
-    getToday,
-    getLastTradingDay,
-    getDayBeforeYesterday,
-    marketOpen,
-    beforeMarket,
-    afterMarket,
-  } = useDateUtils()
-
-  const now = new Date()
-  let fridayData = []
-  let thursdayData = []
-  let mondayData = []
-
-  if (now.getDay() === 1) {
-    // Case: Today is Monday
-    console.log('📅 Monday case - Dates:', {
-      today: getToday(),
-      lastTradingDay: getLastTradingDay(),
-      dayBeforeYesterday: getDayBeforeYesterday(),
-      currentTime: now.toLocaleTimeString(),
-    })
-
-    // Using new getStockInteraday function instead of multiple API calls
-    const stockData = await getStockInteraday(symbol)
-
-    console.log('📊 API Responses:', {
-      mondayData: stockData.todayData,
-      fridayData: stockData.yesterdayData,
-      thursdayData: stockData.dayBeforeYesterdayData,
-    })
-
-    mondayData = stockData.todayData || []
-    fridayData = stockData.yesterdayData || []
-    thursdayData = stockData.dayBeforeYesterdayData || []
-
-    console.log('marketOpen', marketOpen())
-    console.log('beforeMarket', beforeMarket())
-    console.log('afterMarket', afterMarket())
-
-    if (afterMarket()) {
-      const mondayClose = getClosingPrice(mondayData)
-      if (mondayClose) store.setClosingPrice(mondayClose)
-    } else if (beforeMarket() || marketOpen()) {
-      const fridayClose = getClosingPrice(fridayData)
-      if (fridayClose) store.setClosingPrice(fridayClose)
-
-      if (beforeMarket()) {
-        const thursdayClose = getClosingPrice(thursdayData)
-        if (thursdayClose) store.setPreviousClosingPrice(thursdayClose)
-      }
-    }
-
-    // Return only today's data (Monday) and yesterday's data (Friday)
-    return {
-      todayData: mondayData,
-      yesterdayData: fridayData,
-    }
-  } else if (now.getDay() === 0 || now.getDay() === 6) {
-    // Case: Weekend
-    const lastTradingDay = getLastTradingDay()
-    // Parse the date string correctly by adding time component
-    const lastTradingDayDate = new Date(`${lastTradingDay}T00:00:00`)
-    const dayBeforeLastTradingDayDate = new Date(lastTradingDayDate)
-    dayBeforeLastTradingDayDate.setDate(lastTradingDayDate.getDate() - 1)
-    const dayBeforeLastTradingDay = new Intl.DateTimeFormat('en-CA').format(
-      dayBeforeLastTradingDayDate,
+const getMarketStatus = async (exchange) => {
+  try {
+    const response = await axios.get(
+      `${baseUrl}/market_state?exchange=${exchange}&apikey=${apiKey}`,
     )
-
-    // Calculate two days before by subtracting 1 from dayBeforeLastTradingDayDate
-    const twoDaysBeforeLastTradingDay = new Date(dayBeforeLastTradingDayDate)
-    twoDaysBeforeLastTradingDay.setDate(twoDaysBeforeLastTradingDay.getDate() - 1)
-    const twoDaysBeforeLastTradingDayStr = new Intl.DateTimeFormat('en-CA').format(
-      twoDaysBeforeLastTradingDay,
-    )
-
-    console.log('📅 Weekend case - Dates:', {
-      lastTradingDay,
-      dayBeforeLastTradingDay,
-      twoDaysBeforeLastTradingDayStr,
-    })
-
-    // Using new getStockInteraday function instead of direct API call
-    const stockData = await getStockInteraday(symbol)
-
-    if (stockData.allData) {
-      console.log('📊 Total data points received:', stockData.allData.length)
-
-      const lastTradingDayData = stockData.todayData
-      const dayBeforeData = stockData.yesterdayData
-
-      console.log('📊 Filtered data points:', {
-        lastTradingDay: lastTradingDayData.length,
-        dayBefore: dayBeforeData.length,
-      })
-
-      const lastClose = getClosingPrice(lastTradingDayData)
-      const dayBeforeClose = getClosingPrice(dayBeforeData)
-
-      console.log('💰 Closing prices:', {
-        lastClose,
-        dayBeforeClose,
-      })
-
-      if (lastClose) {
-        store.setClosingPrice(lastClose)
-        console.log('✅ Set closing price:', lastClose)
-      }
-      if (dayBeforeClose) {
-        store.setPreviousClosingPrice(dayBeforeClose)
-        console.log('✅ Set previous closing price:', dayBeforeClose)
-      }
+    console.log('market status response data:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('❌ Error fetching market status:', error)
+    if (error.response) {
+      console.error('❌ API Error response:', error.response.data)
     }
-
-    return stockData.allData || []
-  } else {
-    // Normal case: Regular trading day
-    // Using new getStockInteraday function instead of direct API call
-    const stockData = await getStockInteraday(symbol)
-
-    if (stockData.allData) {
-      const yesterdayData = stockData.yesterdayData
-      const dayBeforeData = stockData.dayBeforeYesterdayData
-      const todayData = stockData.todayData
-
-      if (beforeMarket()) {
-        const yesterdayClose = getClosingPrice(yesterdayData)
-        const dayBeforeClose = getClosingPrice(dayBeforeData)
-        if (yesterdayClose) store.setClosingPrice(yesterdayClose)
-        if (dayBeforeClose) store.setPreviousClosingPrice(dayBeforeClose)
-      } else if (marketOpen()) {
-        const yesterdayClose = getClosingPrice(yesterdayData)
-        if (yesterdayClose) store.setClosingPrice(yesterdayClose)
-      } else if (afterMarket()) {
-        const todayClose = getClosingPrice(todayData)
-        if (todayClose) store.setClosingPrice(todayClose)
-      }
-    }
-
-    return stockData.allData || []
+    return null
   }
 }
-
 const connectWebSocket = (symbol, onMessageCallback, store) => {
   if (!store) {
     console.error('❌ Store instance is required for WebSocket connection')
@@ -340,8 +142,8 @@ const disconnectWebSocket = () => {
 export default {
   getStocksList,
   getStockQuote,
+  getLatestTradingDay,
   connectWebSocket,
-  getStockHistory,
   disconnectWebSocket,
-  getStockInteraday,
+  getMarketStatus,
 }
