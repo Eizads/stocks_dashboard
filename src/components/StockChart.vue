@@ -112,8 +112,11 @@ export default defineComponent({
     console.log('props stockSymbol', props.stockSymbol)
     const initializeChartData = async () => {
       try {
-        // Fetch initial stock data
-        const stockData = await store.fetchLatestTradingDay(props.stockSymbol)
+        // Use store's stockHistoryToday if available, otherwise fetch it
+        let stockData = store.stockHistoryToday
+        if (!stockData || stockData.length === 0) {
+          stockData = await store.fetchLatestTradingDay(props.stockSymbol)
+        }
 
         // Use the cached quote data from store
         const quoteResponse = store.stockQuote
@@ -160,6 +163,7 @@ export default defineComponent({
           console.log('Chart color update:', {
             currentPrice,
             previousClosingPrice: store.previousClosingPrice,
+            color: borderColor.value[0],
           })
         }
       } catch (error) {

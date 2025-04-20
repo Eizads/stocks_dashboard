@@ -23,10 +23,15 @@
     <div class="row justify-start items-start q-mx-md q-pt-lg">
       <div class="col-12 col-sm-9">
         <h1 class="text-h5 text-bold q-my-none">{{ store.selectedStock.name }}</h1>
-        <h2 class="q-my-none" style="font-size: 1rem; font-weight: normal">
-          {{ store.selectedStock.exchange }}: {{ store.selectedStock.symbol }}
-        </h2>
-        {{ store.stockQuote }}
+        <div class="row items-center">
+          <h2 class="q-my-none" style="font-size: 1rem; font-weight: normal">
+            {{ store.selectedStock.exchange }}: {{ store.selectedStock.symbol }}
+          </h2>
+
+          <p class="q-my-none q-ml-xl" :class="store.isMarketOpen ? 'text-green' : 'text-red'">
+            {{ store.isMarketOpen ? 'Market is open' : 'Market is closed' }}
+          </p>
+        </div>
         <!-- Live data display -->
 
         <!-- <div v-if="marketOpen() && latestStockPrice && latestStockTime">
@@ -56,15 +61,26 @@
           </p>
         </div> -->
 
-        <!-- Historical data display -->
-        <div>
+        <!-- Live data display -->
+        <div v-if="store.latestStockPrice && store.latestStockTime">
+          <h3 class="text-h4 q-my-sm">
+            {{ Math.round((store.liveData[store.liveData.length - 1].price || 0) * 100) / 100 }}
+            <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
+          </h3>
+          <p :class="store.stockQuote?.change >= 0 ? 'text-green' : 'text-red'" class="q-my-none">
+            {{ formatPrice(store.stockQuote?.change) }}
+            {{ `(${formatPrice(store.stockQuote?.percent_change)}%)` }}
+          </p>
+          <p class="text-grey-7 q-mt-xs q-mb-none">{{ formattedDate }}</p>
+        </div>
+        <div v-else>
           <h3 class="text-h4 q-my-sm">
             {{ Math.round((store.closingPrice || 0) * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
           </h3>
-          <p :class="comparePrice > 0 ? 'text-green' : 'text-red'" class="q-my-none">
-            {{ Math.round(store.stockQuote?.change * 100) / 100 || 0 }}
-            {{ `(${Math.round(store.stockQuote?.percent_change * 100) / 100 || 0}%)` }}
+          <p :class="store.stockQuote?.change >= 0 ? 'text-green' : 'text-red'" class="q-my-none">
+            {{ formatPrice(store.stockQuote?.change) }}
+            {{ `(${formatPrice(store.stockQuote?.percent_change)}%)` }}
           </p>
           <p class="text-grey-7 q-mt-xs q-mb-none">{{ formattedDate }}</p>
         </div>
@@ -144,7 +160,6 @@
 <script>
 import { useRoute } from 'vue-router'
 import { ref, computed, watch } from 'vue'
-import { useDateUtils } from 'src/composables/useDateUtils'
 import StockChart from './StockChart.vue'
 import { useStockStore } from 'src/stores/store'
 import { useQuasar } from 'quasar'
@@ -158,7 +173,6 @@ export default {
     const route = useRoute()
     const store = useStockStore()
     const liveData = ref([])
-    const { isWeekday, marketOpen } = useDateUtils()
     const now = new Date()
 
     const latestStockPrice = computed(() => store.latestStockPrice)
@@ -254,7 +268,6 @@ export default {
     const getCurrentPrice = computed(() => {
       if (latestStockPrice.value) return latestStockPrice.value
       if (store.stockHistoryToday.length > 0) return store.stockHistoryToday[0].y
-      if (store.stockHistoryYesterday.length > 0) return store.stockHistoryYesterday[0].y
       return 0
     })
 
@@ -269,27 +282,11 @@ export default {
       // Get quote data from store
       const quoteData = store.stockQuote
 
-      // If we have quote data, use it
-      if (quoteData) {
-        return {
-          open: Number(quoteData.open),
-          high: Number(quoteData.high),
-          low: Number(quoteData.low),
-        }
-      }
-
-      // Fallback to historical data if quote is not available
-      const currentData = marketOpen() ? store.stockHistoryToday : store.stockHistoryYesterday
-      if (!currentData || currentData.length === 0) return { open: null, high: null, low: null }
-
-      const prices = currentData.map((point) => Number(point.y))
-      const marketOpenTime = '9:30 AM'
-
-      const openPrice = currentData.find((point) => point.x === marketOpenTime)
+      // Return quote data if available, otherwise return null values
       return {
-        open: openPrice ? Number(openPrice.y) : Number(prices[0]),
-        high: prices.length > 0 ? Math.max(...prices) : null,
-        low: prices.length > 0 ? Math.min(...prices) : null,
+        open: quoteData?.open ? Number(quoteData.open) : null,
+        high: quoteData?.high ? Number(quoteData.high) : null,
+        low: quoteData?.low ? Number(quoteData.low) : null,
       }
     })
 
@@ -298,7 +295,6 @@ export default {
       store,
       liveData,
       latestStockPrice,
-      isWeekday,
       now,
       formattedDate,
       latestStockTime,
@@ -307,7 +303,6 @@ export default {
       toggleWatchlist,
       isInWatchlist,
       afterHours,
-      marketOpen,
       getCurrentPrice,
       q,
       getDayStats,

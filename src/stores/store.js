@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   PREVIOUS_CLOSING_PRICE: 'previousClosingPrice',
   MODAL_VIEWED: 'modalViewed',
   QUOTE_CACHE: 'quoteCache',
+  TRADING_DAY_CACHE: 'tradingDayCache',
 }
 
 const MAX_LIVE_DATA_POINTS = 10
@@ -32,9 +33,7 @@ export const useStockStore = defineStore('stockStore', {
 
     return {
       stocksList: parsedStocks,
-      stockHistoryYesterday: [],
       stockHistoryToday: [],
-      stockHistoryDayBefore: [],
       watchList: LocalStorage.getItem(STORAGE_KEYS.WATCH_LIST) || [],
       liveData: [],
       selectedStock: LocalStorage.getItem(STORAGE_KEYS.SELECTED_STOCK) || null,
@@ -45,6 +44,7 @@ export const useStockStore = defineStore('stockStore', {
       lastQuote: null,
       stockQuote: null,
       quoteCache: LocalStorage.getItem(STORAGE_KEYS.QUOTE_CACHE) || {},
+      tradingDayCache: LocalStorage.getItem(STORAGE_KEYS.TRADING_DAY_CACHE) || {},
     }
   },
 
@@ -64,6 +64,9 @@ export const useStockStore = defineStore('stockStore', {
         hour12: true,
         timeZoneName: 'short',
       })
+    },
+    isMarketOpen: (state) => {
+      return state.marketStatus?.is_market_open || false
     },
   },
 
@@ -213,8 +216,47 @@ export const useStockStore = defineStore('stockStore', {
 
     async fetchLatestTradingDay(symbol) {
       try {
+        const cachedData = this.tradingDayCache[symbol]
+
+        // Check if we have cached data
+        if (cachedData?.data) {
+          console.log('📦 Using cached trading day data for', symbol)
+
+          // Format the cached data
+          const formattedData = cachedData.data.map((dataPoint) => ({
+            x: new Date(dataPoint.datetime).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            }),
+            y: parseFloat(dataPoint.close),
+          }))
+
+          // Store the data in stockHistoryToday
+          this.stockHistoryToday = formattedData
+
+          // Only update closing price if we don't have it from quote
+          if (formattedData.length > 0 && !this.closingPrice) {
+            const lastPrice = formattedData[formattedData.length - 1].y
+            this.setClosingPrice(lastPrice)
+          }
+
+          return formattedData
+        }
+
+        // If no cache, make API call
+        console.log('🔄 Fetching fresh trading day data for', symbol)
         const response = await stocksService.getLatestTradingDay(symbol)
-        console.log('latest trading day response from store', response)
+
+        // Update cache with new data
+        this.tradingDayCache = {
+          ...this.tradingDayCache,
+          [symbol]: {
+            data: response,
+            timestamp: Date.now(),
+          },
+        }
+        LocalStorage.set(STORAGE_KEYS.TRADING_DAY_CACHE, this.tradingDayCache)
 
         // Format the data for the chart
         const formattedData = response.map((dataPoint) => ({
@@ -247,6 +289,7 @@ export const useStockStore = defineStore('stockStore', {
     async fetchMarketStatus(exchange) {
       try {
         const response = await stocksService.getMarketStatus(exchange)
+        this.marketStatus = response
         console.log('market status response from store', response)
         return response
       } catch (error) {
