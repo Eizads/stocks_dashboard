@@ -128,25 +128,33 @@
         <div class="stats-container q-pa-sm">
           <div class="row justify-between q-gutter-sm">
             <div class="col price-stat rounded-borders">
-              <div class="text-grey text-caption">Open</div>
+              <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
+                Open
+              </div>
               <div class="text-weight-bold">
                 ${{ Math.round(store.stockQuote?.open * 100) / 100 }}
               </div>
             </div>
             <div class="col price-stat rounded-borders">
-              <div class="text-grey text-caption">High</div>
+              <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
+                High
+              </div>
               <div class="text-weight-bold text-green">
                 ${{ Math.round(store.stockQuote?.high * 100) / 100 }}
               </div>
             </div>
             <div class="col price-stat rounded-borders">
-              <div class="text-grey text-caption">Low</div>
+              <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
+                Low
+              </div>
               <div class="text-weight-bold text-red">
                 ${{ Math.round(store.stockQuote?.low * 100) / 100 }}
               </div>
             </div>
             <div class="col price-stat rounded-borders">
-              <div class="text-grey text-caption">Prev Close</div>
+              <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
+                Prev Close
+              </div>
               <div class="text-weight-bold">
                 ${{
                   store.previousClosingPrice
