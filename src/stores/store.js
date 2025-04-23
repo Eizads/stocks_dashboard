@@ -10,8 +10,8 @@ const STORAGE_KEYS = {
   CLOSING_PRICE: 'closingPrice',
   PREVIOUS_CLOSING_PRICE: 'previousClosingPrice',
   MODAL_VIEWED: 'modalViewed',
-  QUOTE_CACHE: 'quoteCache',
-  TRADING_DAY_CACHE: 'tradingDayCache',
+  // QUOTE_CACHE: 'quoteCache',
+  // TRADING_DAY_CACHE: 'tradingDayCache',
 }
 
 const MAX_LIVE_DATA_POINTS = 10
@@ -43,8 +43,8 @@ export const useStockStore = defineStore('stockStore', {
       webSocket: null,
       lastQuote: null,
       stockQuote: null,
-      quoteCache: LocalStorage.getItem(STORAGE_KEYS.QUOTE_CACHE) || {},
-      tradingDayCache: LocalStorage.getItem(STORAGE_KEYS.TRADING_DAY_CACHE) || {},
+      // quoteCache: LocalStorage.getItem(STORAGE_KEYS.QUOTE_CACHE) || {},
+      // tradingDayCache: LocalStorage.getItem(STORAGE_KEYS.TRADING_DAY_CACHE) || {},
     }
   },
 
@@ -66,6 +66,7 @@ export const useStockStore = defineStore('stockStore', {
       })
     },
     isMarketOpen: (state) => {
+      console.log('has market status', state.marketStatus?.is_market_open)
       return state.marketStatus?.is_market_open || false
     },
   },
@@ -149,24 +150,24 @@ export const useStockStore = defineStore('stockStore', {
 
     async fetchStockQuote(symbol) {
       try {
-        const cachedData = this.quoteCache[symbol]
+        // const cachedData = this.quoteCache[symbol]
 
         // Check if we have cached data
-        if (cachedData?.data) {
-          console.log('📦 Using cached quote data for', symbol)
-          this.stockQuote = cachedData.data
+        // if (cachedData?.data) {
+        //   console.log('📦 Using cached quote data for', symbol)
+        //   this.stockQuote = cachedData.data
 
-          // Update store values from cache
-          const currentClose = cachedData.data?.close ? Number(cachedData.data.close) : null
-          const previousClose = cachedData.data?.previous_close
-            ? Number(cachedData.data.previous_close)
-            : null
+        //   // Update store values from cache
+        //   const currentClose = cachedData.data?.close ? Number(cachedData.data.close) : null
+        //   const previousClose = cachedData.data?.previous_close
+        //     ? Number(cachedData.data.previous_close)
+        //     : null
 
-          if (!isNaN(currentClose)) this.closingPrice = currentClose
-          if (!isNaN(previousClose)) this.previousClosingPrice = previousClose
+        //   if (!isNaN(currentClose)) this.closingPrice = currentClose
+        //   if (!isNaN(previousClose)) this.previousClosingPrice = previousClose
 
-          return cachedData.data
-        }
+        //   return cachedData.data
+        // }
 
         // If no cache, make API call
         console.log('🔄 Fetching fresh quote data for', symbol)
@@ -174,14 +175,14 @@ export const useStockStore = defineStore('stockStore', {
         if (!response) return null
 
         // Update cache with new data
-        this.quoteCache = {
-          ...this.quoteCache,
-          [symbol]: {
-            data: response,
-            timestamp: Date.now(), // Keep timestamp for reference, even though we're not using it for expiration
-          },
-        }
-        LocalStorage.set(STORAGE_KEYS.QUOTE_CACHE, this.quoteCache)
+        // this.quoteCache = {
+        //   ...this.quoteCache,
+        //   [symbol]: {
+        //     data: response,
+        //     timestamp: Date.now(), // Keep timestamp for reference, even though we're not using it for expiration
+        //   },
+        // }
+        // LocalStorage.set(STORAGE_KEYS.QUOTE_CACHE, this.quoteCache)
 
         // Store the quote response
         this.stockQuote = response
@@ -216,33 +217,33 @@ export const useStockStore = defineStore('stockStore', {
 
     async fetchLatestTradingDay(symbol) {
       try {
-        const cachedData = this.tradingDayCache[symbol]
+        // const cachedData = this.tradingDayCache[symbol]
 
         // Check if we have cached data
-        if (cachedData?.data) {
-          console.log('📦 Using cached trading day data for', symbol)
+        // if (cachedData?.data) {
+        //   console.log('📦 Using cached trading day data for', symbol)
 
-          // Format the cached data
-          const formattedData = cachedData.data.map((dataPoint) => ({
-            x: new Date(dataPoint.datetime).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            }),
-            y: parseFloat(dataPoint.close),
-          }))
+        //   // Format the cached data
+        //   const formattedData = cachedData.data.map((dataPoint) => ({
+        //     x: new Date(dataPoint.datetime).toLocaleTimeString('en-US', {
+        //       hour: 'numeric',
+        //       minute: '2-digit',
+        //       hour12: true,
+        //     }),
+        //     y: parseFloat(dataPoint.close),
+        //   }))
 
-          // Store the data in stockHistoryToday
-          this.stockHistoryToday = formattedData
+        //   // Store the data in stockHistoryToday
+        //   this.stockHistoryToday = formattedData
 
-          // Only update closing price if we don't have it from quote
-          if (formattedData.length > 0 && !this.closingPrice) {
-            const lastPrice = formattedData[formattedData.length - 1].y
-            this.setClosingPrice(lastPrice)
-          }
+        //   // Only update closing price if we don't have it from quote
+        //   if (formattedData.length > 0 && !this.closingPrice) {
+        //     const lastPrice = formattedData[formattedData.length - 1].y
+        //     this.setClosingPrice(lastPrice)
+        //   }
 
-          return formattedData
-        }
+        //   return formattedData
+        // }
 
         // If no cache, make API call
         console.log('🔄 Fetching fresh trading day data for', symbol)
@@ -256,7 +257,7 @@ export const useStockStore = defineStore('stockStore', {
             timestamp: Date.now(),
           },
         }
-        LocalStorage.set(STORAGE_KEYS.TRADING_DAY_CACHE, this.tradingDayCache)
+        // LocalStorage.set(STORAGE_KEYS.TRADING_DAY_CACHE, this.tradingDayCache)
 
         // Format the data for the chart
         const formattedData = response.map((dataPoint) => ({
@@ -289,9 +290,14 @@ export const useStockStore = defineStore('stockStore', {
     async fetchMarketStatus(exchange) {
       try {
         const response = await stocksService.getMarketStatus(exchange)
-        this.marketStatus = response
-        console.log('market status response from store', response)
-        return response
+        if (response.length > 0) {
+          this.marketStatus = response[0]
+          console.log('market status response from store', response)
+          return response
+        } else {
+          console.error('❌ No market status data received')
+          return null
+        }
       } catch (error) {
         console.error('❌ Error fetching market status:', error)
         return null

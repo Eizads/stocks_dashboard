@@ -113,7 +113,12 @@
     <!-- Chart section -->
     <div class="row justify-start items-center q-mt-sm">
       <div class="col-12 q-px-md">
-        <StockChart :stockExchange="route.params.exchange" :stockSymbol="route.params.symbol" />
+        <!-- added key to refresh component with each route change -->
+        <StockChart
+          :stockExchange="route.params.exchange"
+          :stockSymbol="route.params.symbol"
+          :key="$route.fullPath"
+        />
       </div>
     </div>
 

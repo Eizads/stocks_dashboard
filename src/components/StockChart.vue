@@ -7,9 +7,10 @@
 <script>
 import { Chart, registerables } from 'chart.js'
 import { LineChart, useLineChart } from 'vue-chart-3'
-import { ref, computed, defineComponent, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, defineComponent, onMounted, onUnmounted } from 'vue'
 import { useStockStore } from 'src/stores/store'
 import annotationPlugin from 'chartjs-plugin-annotation'
+// import { useRoute } from 'vue-router'
 
 Chart.register(...registerables)
 Chart.register(annotationPlugin)
@@ -28,7 +29,7 @@ export default defineComponent({
     const store = useStockStore()
     const lastUpdatedTime = ref(null)
     const formattedArray = ref([])
-    const borderColor = ref(['#21ba45'])
+    const borderColor = ref([])
     const marketOpenTimer = ref(null)
 
     const generateTimeLabels = () => {
@@ -59,7 +60,6 @@ export default defineComponent({
 
     const prices = ref([])
 
-    console.log('prices with hisotry added', prices)
     console.log('prices empty', prices)
 
     const minutePriceAdded = new Set() //tracks which minutes have been added
@@ -75,7 +75,7 @@ export default defineComponent({
         const newPricePoint = { x: time, y: parseFloat(price) }
 
         // Add to the end of the array to maintain chronological order
-        prices.value = [...prices.value, newPricePoint]
+        prices.value = [...prices.value, newPricePoint.y]
         minutePriceAdded.add(currentMinute)
 
         // Update color without triggering chart update
@@ -106,16 +106,18 @@ export default defineComponent({
       }
 
       // Only call update once at the end
-      chart.update('none') // Use 'none' mode to skip animations
+      chart.update() // Use 'none' mode to skip animations
     }
     console.log('store stockHistoryToday', store.stockHistoryToday)
     console.log('props stockSymbol', props.stockSymbol)
     const initializeChartData = async () => {
       try {
-        // Use store's stockHistoryToday if available, otherwise fetch it
-        let stockData = store.stockHistoryToday
-        if (!stockData || stockData.length === 0) {
-          stockData = await store.fetchLatestTradingDay(props.stockSymbol)
+        let stockData = await store.fetchLatestTradingDay(props.stockSymbol, props.stockExchange)
+        if (stockData && stockData.length > 0) {
+          //fetching latest price points
+          prices.value = stockData.map((point) => point.y).reverse() // Extract only the y values
+          console.log('prices.value (y values only)', prices.value)
+          console.log('timestamps.value (x values only)', timestamps.value)
         }
 
         // Use the cached quote data from store
@@ -123,26 +125,20 @@ export default defineComponent({
 
         // If we don't have cached quote data, fetch it
         if (!quoteResponse) {
-          await store.fetchStockQuote(props.stockSymbol)
+          await store.fetchStockQuote(props.stockSymbol, props.stockExchange)
         }
 
-        console.log('stockData chart (array of price points):', {
-          length: stockData.length,
-          firstPoint: stockData[0],
-          lastPoint: stockData[stockData.length - 1],
-          allData: stockData,
-        })
+        // console.log('stockData chart (array of price points):', {
+        //   length: stockData.length,
+        //   firstPoint: stockData[0],
+        //   lastPoint: stockData[stockData.length - 1],
+        //   allData: stockData,
+        // })
         console.log('quoteResponse chart (quote data):', {
           close: store.stockQuote?.close,
           previousClose: store.stockQuote?.previous_close,
           allData: store.stockQuote,
         })
-
-        //fetching latest price points
-        prices.value = stockData.map((point) => point.y).reverse() // Extract only the y values
-        timestamps.value = stockData.map((point) => point.x).reverse()
-        console.log('prices.value (y values only)', prices.value)
-        console.log('timestamps.value (x values only)', timestamps.value)
 
         // Set closing prices from quote response
         const currentClose = store.stockQuote?.close ? parseFloat(store.stockQuote.close) : null
@@ -212,7 +208,11 @@ export default defineComponent({
               drawTime: 'beforeDatasetsDraw',
               label: {
                 display: true,
-                content: ['Previous', 'Close', `${store.previousClosingPrice || '0.00'}`],
+                content: [
+                  'Previous',
+                  'Close',
+                  `${store.previousClosingPrice.toFixed(2) || '0.00'}`,
+                ],
                 position: 'end',
                 backgroundColor: 'white',
                 color: '#757575',
@@ -333,17 +333,6 @@ export default defineComponent({
         console.log('🛑 Cleared market open timer')
       }
     })
-
-    watch(
-      () => props.stockSymbol,
-      async (newSymbol) => {
-        console.log(`🔄 Stock changed to ${newSymbol}, updating chart...`)
-        store.disconnectWebSocket()
-        await initializeChartData()
-        store.connectToWebSocket(newSymbol, updateChart)
-        await setupMarketOpenTimer()
-      },
-    )
 
     return {
       lineChartProps,
