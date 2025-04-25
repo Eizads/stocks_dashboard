@@ -250,13 +250,13 @@ export const useStockStore = defineStore('stockStore', {
         const response = await stocksService.getLatestTradingDay(symbol)
 
         // Update cache with new data
-        this.tradingDayCache = {
-          ...this.tradingDayCache,
-          [symbol]: {
-            data: response,
-            timestamp: Date.now(),
-          },
-        }
+        // this.tradingDayCache = {
+        //   ...this.tradingDayCache,
+        //   [symbol]: {
+        //     data: response,
+        //     timestamp: Date.now(),
+        //   },
+        // }
         // LocalStorage.set(STORAGE_KEYS.TRADING_DAY_CACHE, this.tradingDayCache)
 
         // Format the data for the chart

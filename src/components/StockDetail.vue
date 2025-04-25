@@ -67,9 +67,9 @@
             {{ Math.round((store.liveData[store.liveData.length - 1].price || 0) * 100) / 100 }}
             <span class="text-h5 text-grey-7">{{ store.selectedStock.currency }}</span>
           </h3>
-          <p :class="store.stockQuote?.change >= 0 ? 'text-green' : 'text-red'" class="q-my-none">
-            {{ formatPrice(store.stockQuote?.change) }}
-            {{ `(${formatPrice(store.stockQuote?.percent_change)}%)` }}
+          <p :class="calculateChange >= 0 ? 'text-green' : 'text-red'" class="q-my-none">
+            {{ formatPrice(calculateChange) }}
+            {{ `(${formatPrice(calculatePercentChange)}%)` }}
           </p>
           <p class="text-grey-7 q-mt-xs q-mb-none">{{ formattedDate }}</p>
         </div>
@@ -303,6 +303,22 @@ export default {
       }
     })
 
+    const calculateChange = computed(() => {
+      if (store.latestStockPrice && store.previousClosingPrice) {
+        return store.latestStockPrice - store.previousClosingPrice
+      }
+      return store.stockQuote?.change || 0
+    })
+
+    const calculatePercentChange = computed(() => {
+      if (store.latestStockPrice && store.previousClosingPrice) {
+        return (
+          ((store.latestStockPrice - store.previousClosingPrice) / store.previousClosingPrice) * 100
+        )
+      }
+      return store.stockQuote?.percent_change || 0
+    })
+
     return {
       route,
       store,
@@ -320,6 +336,8 @@ export default {
       q,
       getDayStats,
       formatPrice,
+      calculateChange,
+      calculatePercentChange,
     }
   },
 }

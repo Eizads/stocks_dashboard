@@ -40,14 +40,20 @@ const getLatestTradingDay = async (symbol) => {
     console.log('Raw data received:', data.length, 'entries')
     console.log('raw data', data)
 
-    // Filter data to get only the latest day using ISO date string comparison
-    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-    const filteredData = data.filter((item) => {
-      const itemDate = new Date(item.datetime).toISOString().split('T')[0]
-      return itemDate === today
-    })
-    console.log('filtered latest day data only', filteredData)
+    if (data.length === 0) {
+      return []
+    }
 
+    // Get the most recent date from the data
+    const latestDate = data[0].datetime.split(' ')[0] // Split on space to get just the date part
+    console.log('latest date', latestDate)
+
+    const filteredData = data.filter((item) => {
+      const itemDate = item.datetime.split(' ')[0] // Split on space to get just the date part
+      return itemDate === latestDate
+    })
+
+    console.log('filtered latest day data only', filteredData)
     return filteredData
   } catch (error) {
     console.error('❌ Error fetching intraday data:', error)

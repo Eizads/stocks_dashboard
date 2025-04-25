@@ -211,7 +211,7 @@ export default defineComponent({
                 content: [
                   'Previous',
                   'Close',
-                  `${store.previousClosingPrice.toFixed(2) || '0.00'}`,
+                  `${(!store.isMarketOpen ? store.closingPrice : store.previousClosingPrice)?.toFixed(2) || '0.00'}`,
                 ],
                 position: 'end',
                 backgroundColor: 'white',
