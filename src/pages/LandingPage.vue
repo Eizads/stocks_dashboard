@@ -19,7 +19,7 @@
           ></h1>
         </div>
       </div>
-      <div class="row full-width self-end q-pa-xl">
+      <!-- <div class="row full-width self-end q-pa-xl">
         <div class="col-12 col-md-4">
           <q-btn
             class="bg-blue text-white text-center pulse-button"
@@ -32,7 +32,7 @@
             label="Project Overview"
           ></q-btn>
         </div>
-      </div>
+      </div> -->
     </div>
     <q-dialog v-model="openProjectModal">
       <q-card class="q-pa-lg" style="width: 800px; max-width: 80vw">
