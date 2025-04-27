@@ -14,7 +14,7 @@
         <div class="col-12 q-px-xl">
           <h1
             class="text-white"
-            :class="q.screen.gt.sm ? 'text-h2' : 'text-h1'"
+            :class="q.screen.gt.sm ? 'text-h1' : 'text-h2'"
             v-html="t('text0')"
           ></h1>
         </div>
