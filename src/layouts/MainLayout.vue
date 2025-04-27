@@ -57,6 +57,7 @@ export default defineComponent({
   },
 
   setup() {
+    // Drawer
     const leftDrawerOpen = ref(false)
     const openSearchModal = ref(false)
     const openWatchlistModal = ref(false)
