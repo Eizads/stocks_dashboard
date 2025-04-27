@@ -81,9 +81,9 @@ export default defineComponent({
       LocalStorage.set('modalViewed', true)
     }
     onMounted(() => {
-      if (!LocalStorage.getItem('modalViewed')) {
-        openProjectModal.value = true
-      }
+      // if (!LocalStorage.getItem('modalViewed')) {
+      //   openProjectModal.value = true
+      // }
     })
     return { t, tm, store, LocalStorage, closeModal, openProjectModal, q }
   },

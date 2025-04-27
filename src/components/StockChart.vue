@@ -32,6 +32,10 @@ export default defineComponent({
     const borderColor = ref([])
     const marketOpenTimer = ref(null)
 
+    let extraLabels = 20
+    if (window.innerWidth < 900) {
+      extraLabels = 60
+    }
     const generateTimeLabels = () => {
       const times = []
 
@@ -171,13 +175,14 @@ export default defineComponent({
 
     // Computed property for chart data to reduce reactivity overhead
     const chartData = computed(() => ({
-      labels: timestamps.value,
+      labels: timestamps.value.concat(Array(extraLabels).fill('')),
       datasets: [
         {
           data: prices.value,
           backgroundColor: borderColor.value,
           borderColor: borderColor.value,
           pointRadius: 0,
+          ...Array(extraLabels).fill(''),
         },
       ],
     }))
@@ -202,6 +207,8 @@ export default defineComponent({
               type: 'line',
               yMin: store.previousClosingPrice,
               yMax: store.previousClosingPrice,
+              xMin: 0,
+              xMax: timestamps.value.length + extraLabels,
               borderColor: '#666666',
               borderWidth: 1.5,
               borderDash: [5, 5],
@@ -232,11 +239,15 @@ export default defineComponent({
       scales: {
         x: {
           ticks: {
-            autoSkip: true,
-            maxTicksLimit: 12,
+            // autoSkip: true,
+            // maxTicksLimit: 12,
             minRotation: 0,
             maxRotation: 0,
+            autoSkip: false,
+            maxTicksLimit: 4,
+
             callback: function (value) {
+              const specificTimes = ['10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM']
               const xAxis = this.chart.scales['x']
               const label = xAxis.getLabelForValue(value)
               // Only show hour and minute
@@ -245,12 +256,14 @@ export default defineComponent({
                 minute: '2-digit',
                 hour12: true,
               })
-              return time
+              return specificTimes.includes(time) ? time : ''
             },
             font: {
               size: 11,
             },
           },
+          min: 0,
+          max: timestamps.value.length + extraLabels,
           grid: {
             display: true,
             drawOnChartArea: false,
