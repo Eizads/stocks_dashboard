@@ -43,10 +43,9 @@
 <script>
 import { defineComponent, ref } from 'vue'
 import SearchComponent from 'src/components/SearchComponent.vue'
-import WatchlistComponent from 'src/components/WatchlistComponent.vue'
 import { useStockStore } from 'stores/store'
 import Stock4Watchlist from 'src/components/Stock4Watchlist.vue'
-
+import WatchlistComponent from 'src/components/WatchlistComponent.vue'
 export default defineComponent({
   name: 'MainLayout',
 
