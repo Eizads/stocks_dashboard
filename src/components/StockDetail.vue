@@ -132,7 +132,7 @@
               <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
                 Open
               </div>
-              <div class="text-weight-bold">
+              <div class="text-weight-bold" :class="q.screen.lt.sm ? 'text-h6' : 'text-h5'">
                 ${{ Math.round(store.stockQuote?.open * 100) / 100 }}
               </div>
             </div>
@@ -140,7 +140,10 @@
               <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
                 High
               </div>
-              <div class="text-weight-bold text-green">
+              <div
+                class="text-weight-bold text-green"
+                :class="q.screen.lt.sm ? 'text-h6' : 'text-h5'"
+              >
                 ${{ Math.round(store.stockQuote?.high * 100) / 100 }}
               </div>
             </div>
@@ -148,7 +151,10 @@
               <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
                 Low
               </div>
-              <div class="text-weight-bold text-red">
+              <div
+                class="text-weight-bold text-red"
+                :class="q.screen.lt.sm ? 'text-h6' : 'text-h5'"
+              >
                 ${{ Math.round(store.stockQuote?.low * 100) / 100 }}
               </div>
             </div>
@@ -156,7 +162,7 @@
               <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
                 Prev Close
               </div>
-              <div class="text-weight-bold">
+              <div class="text-weight-bold" :class="q.screen.lt.sm ? 'text-h6' : 'text-h5'">
                 ${{
                   store.previousClosingPrice
                     ? Number(store.previousClosingPrice).toFixed(2)
