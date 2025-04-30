@@ -9,7 +9,7 @@
             rounded
             outlined
             v-model="searchQuery"
-            debounce="500"
+            debounce="800"
             placeholder="stock name"
           >
             <template v-slot:prepend>
@@ -107,37 +107,36 @@ export default {
     const searchQuery = ref('')
     const uptrend = ref(true)
 
-    console.log(store.fetchStockList().value)
     const filteredStocks = computed(() => {
-      if (!store.stocksList.length) return [] // Prevents returning undefined
-      return (
-        store.stocksList?.filter(
+      if (!searchQuery.value || !store.stocksList || !store.stocksList.length) return []
+      const query = searchQuery.value.toLowerCase().trim()
+      return store.stocksList
+        .filter(
           (stock) =>
-            stock.name.toLowerCase().startsWith(searchQuery.value.toLocaleLowerCase()) ||
-            stock.symbol.toLowerCase().startsWith(searchQuery.value.toLocaleLowerCase()),
-        ) ?? []
-      )
+            stock.name.toLowerCase().startsWith(query) ||
+            stock.symbol.toLowerCase().startsWith(query),
+        )
+        .slice(0, 50) // Limit results to improve performance
     })
+
     const sortedStocks = computed(() => {
+      if (!filteredStocks.value.length) return []
+
       const exchangeOrder = {
         NASDAQ: 1,
         NYSE: 2,
         TSX: 3,
       }
 
-      return (
-        [...filteredStocks.value].sort(
-          (a, b) => (exchangeOrder[a.exchange] || 99) - (exchangeOrder[b.exchange] || 99),
-        ) ?? []
+      return [...filteredStocks.value].sort(
+        (a, b) => (exchangeOrder[a.exchange] || 99) - (exchangeOrder[b.exchange] || 99),
       )
     })
-    const searchResult = computed(() => {
-      return sortedStocks.value.map((stock) => stock)
-    })
+
+    const searchResult = computed(() => sortedStocks.value)
 
     //closing the search dialog even if the same route is selected again
     const unregisterAfterEach = router.afterEach(() => {
-      console.log('🔄 Route changed! Closing modal...')
       emit('closeSearchDialog')
     })
 
@@ -154,7 +153,6 @@ export default {
     return {
       filteredStocks,
       searchQuery,
-
       searchResult,
       sortedStocks,
       uptrend,
