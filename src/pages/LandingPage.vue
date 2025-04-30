@@ -1,14 +1,5 @@
 <template>
-  <q-page
-    class="full-width full-height flex justify-between flex-column"
-    style="
-      overflow: hidden;
-      background-image: url('/page1/banner1.jpg');
-      background-position: center;
-      background-repeat: no-repeat;
-      background-size: cover;
-    "
-  >
+  <q-page class="full-width full-height flex justify-between flex-column" :style="backgroundStyle">
     <div class="container flex flex-column justify-between">
       <div class="row align-center justify-center full-width">
         <div class="col-12 q-px-xl">
@@ -64,7 +55,7 @@
 <script>
 import { LocalStorage } from 'quasar'
 import { useStockStore } from 'src/stores/store'
-import { defineComponent, onMounted, ref } from 'vue'
+import { defineComponent, onMounted, ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuasar } from 'quasar'
 
@@ -76,6 +67,17 @@ export default defineComponent({
     const store = useStockStore()
     const openProjectModal = ref(false)
     const q = useQuasar()
+
+    const backgroundStyle = computed(() => {
+      return {
+        overflow: 'hidden',
+        backgroundImage: `url(${import.meta.env.BASE_URL}page1/banner1.jpg)`,
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+      }
+    })
+
     const closeModal = () => {
       openProjectModal.value = false
       LocalStorage.set('modalViewed', true)
@@ -85,7 +87,7 @@ export default defineComponent({
       //   openProjectModal.value = true
       // }
     })
-    return { t, tm, store, LocalStorage, closeModal, openProjectModal, q }
+    return { t, tm, store, LocalStorage, closeModal, openProjectModal, q, backgroundStyle }
   },
 })
 </script>
