@@ -2,8 +2,14 @@
   <div>
     <div class="container">
       <div class="row justify-center">
-        <div class="col-md-7">
-          <q-card style="width: 100%; height: 700px; max-height: 800px; overflow: scroll">
+        <div class="col-12 col-md-7">
+          <q-card
+            :style="
+              q.screen.gt.xs
+                ? 'width: 100%; height: 700px; max-height: 800px; overflow: scroll'
+                : 'width: 100%; height: 100%; max-height: 500px; overflow: scroll'
+            "
+          >
             <!-- search bar -->
             <q-card-section>
               <q-input
@@ -56,7 +62,7 @@
                         </q-item-label>
                       </q-item-section>
                       <q-item-section>
-                        <q-item-label>
+                        <q-item-label v-if="q.screen.gt.xs">
                           {{ stock.name }}
                         </q-item-label>
                       </q-item-section>
@@ -69,7 +75,7 @@
                       </q-item-section>
 
                       <!-- add stock to watchlist -->
-                      <q-item-section avatar v-if="q.screen.gt.xs">
+                      <q-item-section avatar>
                         <q-icon
                           :name="isInWatchList(stock) ? 'bi-dash-circle' : 'bi-plus-circle'"
                           size="32px"

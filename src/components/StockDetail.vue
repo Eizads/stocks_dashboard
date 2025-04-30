@@ -91,6 +91,7 @@
         <div :class="q.screen.gt.sm ? 'flex justify-center' : 'flex justify-start'">
           <q-btn
             class="bg-blue text-white text-center"
+            :style="q.screen.gt.sm ? 'margin-top: 0px' : 'margin-top: 10px'"
             size="md"
             padding="sm lg"
             style="min-width: 150px"
