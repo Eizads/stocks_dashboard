@@ -4,7 +4,7 @@ import { quasar, transformAssetUrls } from '@quasar/vite-plugin'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: './',
+  base: process.env.NODE_ENV === 'production' ? '/vue-stocks-dashboard/' : '',
   plugins: [
     vue({
       template: { transformAssetUrls },

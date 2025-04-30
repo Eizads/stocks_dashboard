@@ -46,7 +46,7 @@ export default defineConfig((ctx) => {
 
       // rebuildCache: true, // rebuilds Vite/linter/etc cache on startup
 
-      publicPath: '/vue-stocks-dashboard',
+      publicPath: process.env.NODE_ENV === 'production' ? '/vue-stocks-dashboard' : '',
       // analyze: true,
       // env: {},
       // rawDefine: {}
