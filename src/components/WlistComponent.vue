@@ -6,8 +6,8 @@
           <q-card
             :style="
               q.screen.gt.xs
-                ? 'width: 100%; height: 700px; max-height: 800px; overflow: scroll'
-                : 'width: 100%; height: 100%; max-height: 500px; overflow: scroll'
+                ? 'width: 100%; height: 700px; max-height: 800px; overflow: auto'
+                : 'width: 100%; height: 100%; max-height: 500px; overflow: auto'
             "
           >
             <!-- search bar -->
@@ -16,7 +16,7 @@
                 rounded
                 outlined
                 v-model="searchQuery"
-                debounce="500"
+                debounce="800"
                 placeholder="stock name"
               >
                 <template v-slot:prepend>
@@ -113,53 +113,61 @@ export default {
     const q = useQuasar()
     const searchQuery = ref('')
     const uptrend = ref(true)
-    console.log(store.fetchStockList().value)
+
     const filteredStocks = computed(() => {
-      if (!store.stocksList.length) return [] // Prevents returning undefined
-      return (
-        store.stocksList?.filter(
+      if (!searchQuery.value || !store.stocksList || !store.stocksList.length) return []
+      const query = searchQuery.value.toLowerCase().trim()
+      return store.stocksList
+        .filter(
           (stock) =>
-            stock.name.toLowerCase().startsWith(searchQuery.value.toLocaleLowerCase()) ||
-            stock.symbol.toLowerCase().startsWith(searchQuery.value.toLocaleLowerCase()),
-        ) ?? []
-      )
+            stock.name.toLowerCase().startsWith(query) ||
+            stock.symbol.toLowerCase().startsWith(query),
+        )
+        .slice(0, 50) // Limit results to improve performance
     })
+
     const sortedStocks = computed(() => {
+      if (!filteredStocks.value.length) return []
+
       const exchangeOrder = {
         NASDAQ: 1,
         NYSE: 2,
         TSX: 3,
       }
 
-      return (
-        [...filteredStocks.value].sort(
-          (a, b) => (exchangeOrder[a.exchange] || 99) - (exchangeOrder[b.exchange] || 99),
-        ) ?? []
+      return [...filteredStocks.value].sort(
+        (a, b) => (exchangeOrder[a.exchange] || 99) - (exchangeOrder[b.exchange] || 99),
       )
     })
-    const searchResult = computed(() => {
-      return sortedStocks.value.map((stock) => stock)
-    })
+
+    const searchResult = computed(() => sortedStocks.value)
+
     //closing the search dialog even if the same route is selected again
     const unregisterAfterEach = router.afterEach(() => {
-      console.log('🔄 Route changed! Closing modal...')
       emit('closeWatchListDialog')
+    })
+
+    // Create a Map for faster lookup of watchlist stocks
+    const watchlistMap = computed(() => {
+      const map = new Map()
+      store.watchList.forEach((stock) => {
+        map.set(`${stock.exchange}-${stock.symbol}`, true)
+      })
+      return map
     })
 
     const addStock = (stock) => {
       toggleStock.value = true
       store.addToWatchList(stock)
     }
+
     const removeStock = (stock) => {
       toggleStock.value = false
       store.removeFromWatchList(stock)
     }
+
     const isInWatchList = (stock) => {
-      const isIn = store.watchList.some(
-        (s) => s.exchange === stock.exchange && s.symbol === stock.symbol,
-      )
-      console.log('is in watchlist', isIn)
-      return isIn
+      return watchlistMap.value.has(`${stock.exchange}-${stock.symbol}`)
     }
 
     onMounted(() => {
