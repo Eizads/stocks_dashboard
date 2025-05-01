@@ -132,7 +132,10 @@
               <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
                 Open
               </div>
-              <div class="text-weight-bold" :class="q.screen.lt.sm ? 'text-h6' : 'text-h5'">
+              <div
+                class="text-weight-bold"
+                :style="q.screen.lt.sm ? 'font-size: 1rem' : 'font-size: 1.5rem'"
+              >
                 ${{ Math.round(store.stockQuote?.open * 100) / 100 }}
               </div>
             </div>
@@ -142,7 +145,7 @@
               </div>
               <div
                 class="text-weight-bold text-green"
-                :class="q.screen.lt.sm ? 'text-h6' : 'text-h5'"
+                :style="q.screen.lt.sm ? 'font-size: 1rem' : 'font-size: 1.5rem'"
               >
                 ${{ Math.round(store.stockQuote?.high * 100) / 100 }}
               </div>
@@ -153,7 +156,7 @@
               </div>
               <div
                 class="text-weight-bold text-red"
-                :class="q.screen.lt.sm ? 'text-h6' : 'text-h5'"
+                :style="q.screen.lt.sm ? 'font-size: 1rem' : 'font-size: 1.5rem'"
               >
                 ${{ Math.round(store.stockQuote?.low * 100) / 100 }}
               </div>
@@ -162,7 +165,10 @@
               <div :style="q.screen.lt.sm ? 'min-height:35px' : ''" class="text-grey text-caption">
                 Prev Close
               </div>
-              <div class="text-weight-bold" :class="q.screen.lt.sm ? 'text-h6' : 'text-h5'">
+              <div
+                class="text-weight-bold"
+                :style="q.screen.lt.sm ? 'font-size: 1rem' : 'font-size: 1.5rem'"
+              >
                 ${{
                   store.previousClosingPrice
                     ? Number(store.previousClosingPrice).toFixed(2)
