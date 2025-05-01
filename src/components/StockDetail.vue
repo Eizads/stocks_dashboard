@@ -134,9 +134,9 @@
               </div>
               <div
                 class="text-weight-bold"
-                :style="q.screen.lt.sm ? 'font-size: 1rem' : 'font-size: 1.5rem'"
+                :style="q.screen.lt.sm ? 'font-size: 0.85rem' : 'font-size: 1.5rem'"
               >
-                ${{ Math.round(store.stockQuote?.open * 100) / 100 }}
+                {{ Math.round(store.stockQuote?.open * 100) / 100 }}
               </div>
             </div>
             <div class="col price-stat rounded-borders">
@@ -145,9 +145,9 @@
               </div>
               <div
                 class="text-weight-bold text-green"
-                :style="q.screen.lt.sm ? 'font-size: 1rem' : 'font-size: 1.5rem'"
+                :style="q.screen.lt.sm ? 'font-size: 0.85rem' : 'font-size: 1.5rem'"
               >
-                ${{ Math.round(store.stockQuote?.high * 100) / 100 }}
+                {{ Math.round(store.stockQuote?.high * 100) / 100 }}
               </div>
             </div>
             <div class="col price-stat rounded-borders">
@@ -156,9 +156,9 @@
               </div>
               <div
                 class="text-weight-bold text-red"
-                :style="q.screen.lt.sm ? 'font-size: 1rem' : 'font-size: 1.5rem'"
+                :style="q.screen.lt.sm ? 'font-size: 0.85rem' : 'font-size: 1.5rem'"
               >
-                ${{ Math.round(store.stockQuote?.low * 100) / 100 }}
+                {{ Math.round(store.stockQuote?.low * 100) / 100 }}
               </div>
             </div>
             <div class="col price-stat rounded-borders">
@@ -167,9 +167,9 @@
               </div>
               <div
                 class="text-weight-bold"
-                :style="q.screen.lt.sm ? 'font-size: 1rem' : 'font-size: 1.5rem'"
+                :style="q.screen.lt.sm ? 'font-size: 0.85rem' : 'font-size: 1.5rem'"
               >
-                ${{
+                {{
                   store.previousClosingPrice
                     ? Number(store.previousClosingPrice).toFixed(2)
                     : '--.--'
