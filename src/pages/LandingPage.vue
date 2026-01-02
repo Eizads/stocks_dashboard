@@ -8,7 +8,6 @@
             :class="q.screen.gt.sm ? 'text-h1' : 'text-h2'"
             v-html="t('text0')"
           ></h1>
-          <p class="text-white">test</p>
         </div>
       </div>
       <!-- <div class="row full-width self-end q-pa-xl">
